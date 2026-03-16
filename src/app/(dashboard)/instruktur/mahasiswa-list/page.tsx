@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Search, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getMahasiswaPhotoUrl } from "@/lib/mahasiswa-photo";
 import type { User, Payment, Assessment, Schedule } from "@shared/schema";
 
 export default function DaftarMahasiswa() {
@@ -84,6 +85,7 @@ export default function DaftarMahasiswa() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: "#faf8f3", borderBottom: "1px solid #e8e4db" }}>
+                <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Foto</th>
                 <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>NIM</th>
                 <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Nama</th>
                 <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Fakultas</th>
@@ -100,6 +102,18 @@ export default function DaftarMahasiswa() {
                   className="cursor-pointer transition-colors hover:bg-[#faf8f3]"
                   style={{ borderBottom: "1px solid #f0ede6" }}
                 >
+                  <td className="py-3 px-4">
+                    <img
+                      src={getMahasiswaPhotoUrl(s.nim || "")}
+                      alt={s.name}
+                      className="w-9 h-9 rounded-full object-cover border"
+                      style={{ borderColor: "#e8e4db" }}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.outerHTML = `<div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold" style="background:#84B179;color:#fff">${s.name.charAt(0)}</div>`;
+                      }}
+                    />
+                  </td>
                   <td className="py-3 px-4 font-mono text-xs" style={{ color: "#84B179" }}>{s.nim}</td>
                   <td className="py-3 px-4 font-medium" style={{ color: "#1A1A1A" }}>{s.name}</td>
                   <td className="py-3 px-4" style={{ color: "#666" }}>{s.faculty}</td>
@@ -109,7 +123,7 @@ export default function DaftarMahasiswa() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center" style={{ color: "#888" }}>
+                  <td colSpan={6} className="py-12 text-center" style={{ color: "#888" }}>
                     Tidak ada data mahasiswa ditemukan
                   </td>
                 </tr>

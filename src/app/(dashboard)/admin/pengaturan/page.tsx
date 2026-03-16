@@ -15,7 +15,7 @@ export default function Pengaturan() {
   const { data: settings, isLoading } = useQuery<SettingsType>({ queryKey: ["/api/settings"] });
 
   const [form, setForm] = useState({
-    appName: "Mengaji",
+    appName: "TajwidKu",
     academicYear: "2025/2026",
     passingScore: 70,
     paymentAmount: "150000",

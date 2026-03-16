@@ -12,6 +12,8 @@ export async function seedDatabase() {
     { username: "2024101003", password: "password123", role: "mahasiswa" as const, name: "Muhammad Rafli Hidayat", nim: "2024101003", faculty: "Fakultas Hukum", program: "Ilmu Hukum", email: "rafli.hidayat@univ.ac.id", phone: "081234567892" },
     { username: "2024101004", password: "password123", role: "mahasiswa" as const, name: "Aisyah Zahra Kamila", nim: "2024101004", faculty: "Fakultas Kedokteran", program: "Pendidikan Dokter", email: "aisyah.zahra@univ.ac.id", phone: "081234567893" },
     { username: "2024101005", password: "password123", role: "mahasiswa" as const, name: "Dimas Pratama Putra", nim: "2024101005", faculty: "Fakultas Teknik", program: "Teknik Sipil", email: "dimas.pratama@univ.ac.id", phone: "081234567894" },
+    // Akun uji coba — password: tajwid123 (MD5 hashed)
+    { username: "105841108421", password: "8f6532824016b52a07063023099be7a2", role: "mahasiswa" as const, name: "Mahasiswa Uji Coba", nim: "105841108421", faculty: "Fakultas Teknik", program: "Teknik Informatika", email: "test@unismuh.ac.id", phone: "081200000000" },
   ];
 
   const instructorData = [
@@ -31,11 +33,12 @@ export async function seedDatabase() {
   const dueDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
   const paymentData = [
-    { studentId: insertedStudents[0].id, amount: "150000", dueDate, description: "Biaya Ujian Mengaji Semester Genap 2025/2026", status: "lunas" as const, paidAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000) },
-    { studentId: insertedStudents[1].id, amount: "150000", dueDate, description: "Biaya Ujian Mengaji Semester Genap 2025/2026", status: "menunggu_verifikasi" as const, proofUrl: "/uploads/bukti_bayar_siti.jpg" },
-    { studentId: insertedStudents[2].id, amount: "150000", dueDate, description: "Biaya Ujian Mengaji Semester Genap 2025/2026", status: "lunas" as const, paidAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
-    { studentId: insertedStudents[3].id, amount: "150000", dueDate, description: "Biaya Ujian Mengaji Semester Genap 2025/2026", status: "belum_bayar" as const },
-    { studentId: insertedStudents[4].id, amount: "150000", dueDate, description: "Biaya Ujian Mengaji Semester Genap 2025/2026", status: "lunas" as const, paidAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000) },
+    { studentId: insertedStudents[0].id, amount: "150000", dueDate, description: "Biaya Ujian Tajwid Semester Genap 2025/2026", status: "lunas" as const, paidAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000) },
+    { studentId: insertedStudents[1].id, amount: "150000", dueDate, description: "Biaya Ujian Tajwid Semester Genap 2025/2026", status: "menunggu_verifikasi" as const, proofUrl: "/uploads/bukti_bayar_siti.jpg" },
+    { studentId: insertedStudents[2].id, amount: "150000", dueDate, description: "Biaya Ujian Tajwid Semester Genap 2025/2026", status: "lunas" as const, paidAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+    { studentId: insertedStudents[3].id, amount: "150000", dueDate, description: "Biaya Ujian Tajwid Semester Genap 2025/2026", status: "belum_bayar" as const },
+    { studentId: insertedStudents[4].id, amount: "150000", dueDate, description: "Biaya Ujian Tajwid Semester Genap 2025/2026", status: "lunas" as const, paidAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000) },
+    { studentId: insertedStudents[5].id, amount: "150000", dueDate, description: "Biaya Ujian Tajwid Semester Genap 2025/2026", status: "lunas" as const, paidAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000) },
   ];
   await db.insert(payments).values(paymentData);
 
@@ -59,7 +62,7 @@ export async function seedDatabase() {
   await db.insert(assessments).values(assessmentData);
 
   await db.insert(settings).values({
-    appName: "Mengaji",
+    appName: "TajwidKu",
     academicYear: "2025/2026",
     passingScore: 70,
     paymentAmount: "150000",

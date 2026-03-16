@@ -1,22 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { BookOpen, Eye, EyeOff, Moon, Star } from "lucide-react";
+import { Eye, EyeOff, Moon } from "lucide-react";
+
+const MAHASISWA_NIMS = ["105841102018", "105841102019", "105841102020", "105841102021"];
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"mahasiswa" | "instruktur" | "admin">("mahasiswa");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [avatarOrder, setAvatarOrder] = useState(MAHASISWA_NIMS);
   const { login } = useAuth();
   const { toast } = useToast();
+
+  // Shuffle avatar order setiap 4 detik
+  useEffect(() => {
+    setAvatarOrder(shuffleArray(MAHASISWA_NIMS));
+    const interval = setInterval(() => setAvatarOrder(shuffleArray(MAHASISWA_NIMS)), 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,84 +43,112 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      await login(username, password, role);
+      await login(username, password);
       toast({ title: "Berhasil", description: "Selamat datang!" });
     } catch (e: any) {
-      toast({ title: "Gagal masuk", description: "Username atau password salah", variant: "destructive" });
+      toast({ title: "Gagal masuk", description: "NIM/Username atau password salah", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  const roles = [
-    { value: "mahasiswa" as const, label: "Mahasiswa" },
-    { value: "instruktur" as const, label: "Instruktur" },
-    { value: "admin" as const, label: "Admin" },
-  ];
-
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #84B179 0%, #6a9960 40%, #527a4a 100%)" }}>
-      <svg className="absolute inset-0 w-full h-full opacity-[0.06]" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <pattern id="islamic-pattern" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
-            <path d="M40 0 L80 40 L40 80 L0 40Z" fill="none" stroke="#E8F5BD" strokeWidth="0.5" />
-            <circle cx="40" cy="40" r="15" fill="none" stroke="#E8F5BD" strokeWidth="0.5" />
-            <path d="M40 25 L47 35 L57 35 L50 42 L53 52 L40 46 L27 52 L30 42 L23 35 L33 35Z" fill="none" stroke="#E8F5BD" strokeWidth="0.3" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#islamic-pattern)" />
-      </svg>
+    <div className="min-h-screen flex">
+      {/* Sidebar — foto Unsplash background tetap */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        <img
+          src="https://images.unsplash.com/photo-1609599006353-e629aaabfeae?w=1200&q=80"
+          alt="Al-Quran"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(30,30,30,0.3) 0%, rgba(30,30,30,0.6) 50%, rgba(30,30,30,0.85) 100%)" }} />
 
-      <div className="absolute top-8 right-12 opacity-10">
-        <Moon className="w-32 h-32 text-[#E8F5BD]" />
-      </div>
-      <div className="absolute bottom-12 left-8 opacity-5">
-        <Star className="w-20 h-20 text-[#C7EABB]" />
-      </div>
+         <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
+          <div />
 
-      <Card className="w-full max-w-md relative z-10 border-0 shadow-2xl" style={{ background: "rgba(250, 247, 240, 0.97)", borderRadius: "16px" }}>
-        <CardHeader className="text-center pb-2 pt-8">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #84B179, #A2CB8B)" }}>
-              <BookOpen className="w-7 h-7 text-white" />
+          <div className="space-y-6">
+            <h2 className="text-4xl font-serif font-bold leading-tight drop-shadow-lg">
+              Platform Penilaian<br />Kemampuan Tajwid
+            </h2>
+            <p className="text-base opacity-90 max-w-md leading-relaxed drop-shadow">
+              Sistem penilaian tajwid, kelancaran, makhorijul huruf, dan adab membaca Al-Quran secara terstruktur.
+            </p>
+
+            {/* Foto mahasiswa kecil — berganti urutan random */}
+            <div className="flex items-center gap-4 pt-2">
+              <div className="flex -space-x-3">
+                {avatarOrder.map((nim, i) => (
+                  <img
+                    key={nim}
+                    src={`https://simak.unismuh.ac.id/upload/mahasiswa/${nim}.jpg`}
+                    alt="Mahasiswa"
+                    className="w-10 h-10 rounded-full object-cover border-2 border-white/40 transition-all duration-700"
+                    style={{ zIndex: MAHASISWA_NIMS.length - i }}
+                  />
+                ))}
+              </div>
+              <p className="text-sm opacity-80">Ratusan mahasiswa telah mengikuti</p>
             </div>
           </div>
-          <h1 className="text-3xl font-bold font-serif" style={{ color: "#84B179" }}>Mengaji</h1>
-          <p className="text-sm mt-1" style={{ color: "#666" }}>Platform Penilaian Kemampuan Al-Quran</p>
-        </CardHeader>
 
-        <CardContent className="px-8 pb-8 pt-4">
-          <div className="flex rounded-xl p-1 mb-6" style={{ background: "#f0ede6" }}>
-            {roles.map((r) => (
-              <button
-                key={r.value}
-                data-testid={`role-tab-${r.value}`}
-                onClick={() => setRole(r.value)}
-                className="flex-1 py-2.5 text-sm font-medium rounded-lg transition-all duration-200"
-                style={{
-                  background: role === r.value ? "#84B179" : "transparent",
-                  color: role === r.value ? "#fff" : "#666",
-                  fontWeight: role === r.value ? 600 : 400,
-                }}
-              >
-                {r.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 opacity-60 text-sm">
+            <Moon className="w-4 h-4" />
+            <span>Universitas Muhammadiyah Makassar</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Form login */}
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 relative overflow-hidden" style={{ background: "#FAF7F0" }}>
+        <svg className="absolute inset-0 w-full h-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="islamic-pattern" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
+              <path d="M40 0 L80 40 L40 80 L0 40Z" fill="none" stroke="#84B179" strokeWidth="0.5" />
+              <circle cx="40" cy="40" r="15" fill="none" stroke="#84B179" strokeWidth="0.5" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#islamic-pattern)" />
+        </svg>
+
+        <div className="w-full max-w-md relative z-10">
+          {/* Logo — hanya tampil di mobile */}
+          <div className="flex flex-col items-center gap-3 mb-8 lg:hidden">
+            <div className="flex items-center justify-center gap-2">
+              <img src="/logo/universitas.png" alt="Unismuh" style={{ width: 40, height: 40, minWidth: 40 }} className="object-contain flex-shrink-0" />
+              <img src="/logo/teknik.png" alt="Teknik" style={{ width: 48, height: 48, minWidth: 48 }} className="object-contain flex-shrink-0" />
+              <img src="/logo/logo.png" alt="FT" style={{ width: 48, height: 48, minWidth: 48 }} className="object-contain flex-shrink-0" />
+            </div>
+            <div className="text-center">
+              <h1 className="text-2xl font-bold font-serif" style={{ color: "#84B179" }}>TajwidKu</h1>
+              <p className="text-xs" style={{ color: "#888" }}>Masuk ke akun Anda untuk melanjutkan</p>
+            </div>
+          </div>
+
+          {/* Logo row — desktop */}
+          <div className="hidden lg:flex items-center justify-center gap-4 mb-6">
+            <img src="/logo/universitas.png" alt="Logo Universitas" className="w-14 h-14 object-contain" />
+            <img src="/logo/teknik.png" alt="Logo FT" className="object-contain" style={{ width: 70, height: 70 }} />
+            <img src="/logo/logo.png" alt="Logo" className="object-contain" style={{ width: 70, height: 70 }} />
+          </div>
+
+          <div className="mb-8 hidden lg:block text-center">
+            <h1 className="text-2xl font-bold" style={{ color: "#1A1A1A" }}>TajwidKu</h1>
+            <p className="text-sm mt-1" style={{ color: "#888" }}>Masuk ke akun Anda untuk melanjutkan</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-sm font-medium" style={{ color: "#1A1A1A" }}>
-                {role === "mahasiswa" ? "NIM / Username" : "Username"}
+                NIM / Username
               </Label>
               <Input
                 id="username"
                 data-testid="input-username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder={role === "mahasiswa" ? "Masukkan NIM Anda" : "Masukkan username"}
+                placeholder="Masukkan NIM atau username"
                 className="h-11 rounded-xl border-gray-200 focus:border-[#84B179] focus:ring-[#84B179]/20"
-                style={{ background: "#faf8f3" }}
+                style={{ background: "#fff" }}
               />
             </div>
 
@@ -120,7 +165,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Masukkan password"
                   className="h-11 rounded-xl border-gray-200 pr-10 focus:border-[#84B179] focus:ring-[#84B179]/20"
-                  style={{ background: "#faf8f3" }}
+                  style={{ background: "#fff" }}
                 />
                 <button
                   type="button"
@@ -149,13 +194,22 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 pt-4 border-t border-gray-100">
+          <div className="mt-6 pt-4 border-t border-gray-200">
             <p className="text-xs text-center" style={{ color: "#999" }}>
-              Demo: Mahasiswa (2024101001/password123) · Instruktur (ustadz_hamid/password123) · Admin (admin/admin123)
+              created by{" "}
+              <a
+                href="https://github.com/devnolife"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium hover:underline"
+                style={{ color: "#84B179" }}
+              >
+                devnolife
+              </a>
             </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

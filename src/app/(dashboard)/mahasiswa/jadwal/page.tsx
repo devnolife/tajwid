@@ -70,7 +70,7 @@ export default function JadwalSaya() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="rounded-2xl border p-6 md:p-8" style={{ background: "#fff", borderColor: "#e8e4db" }}>
-        <h3 className="text-lg font-semibold mb-6" style={{ color: "#1A1A1A" }}>Jadwal Tes Mengaji</h3>
+        <h3 className="text-lg font-semibold mb-6" style={{ color: "#1A1A1A" }}>Jadwal Tes Tajwid</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="rounded-xl p-5" style={{ background: "linear-gradient(135deg, #84B179 0%, #A2CB8B 100%)" }}>

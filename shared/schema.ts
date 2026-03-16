@@ -57,7 +57,7 @@ export const assessments = pgTable("assessments", {
 
 export const settings = pgTable("settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  appName: text("app_name").notNull().default("Mengaji"),
+  appName: text("app_name").notNull().default("TajwidKu"),
   academicYear: text("academic_year").notNull().default("2025/2026"),
   passingScore: integer("passing_score").notNull().default(70),
   paymentAmount: decimal("payment_amount", { precision: 12, scale: 2 }).notNull().default("150000"),
@@ -72,7 +72,7 @@ export const insertSettingsSchema = createInsertSchema(settings).omit({ id: true
 export const loginSchema = z.object({
   username: z.string().min(1, "Username wajib diisi"),
   password: z.string().min(1, "Password wajib diisi"),
-  role: z.enum(["mahasiswa", "instruktur", "admin"]),
+  role: z.enum(["mahasiswa", "instruktur", "admin"]).optional(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

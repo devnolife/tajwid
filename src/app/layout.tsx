@@ -17,8 +17,14 @@ const amiri = Amiri({
 });
 
 export const metadata: Metadata = {
-  title: "Mengaji - Platform Penilaian Al-Quran",
-  description: "Multi-role dashboard for Islamic Quran recitation assessment",
+  title: "TajwidKu - Platform Penilaian Tajwid",
+  description: "Sistem penilaian kemampuan tajwid Al-Quran mahasiswa",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
@@ -28,7 +34,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" suppressHydrationWarning>
-      <body className={`${dmSans.variable} ${amiri.variable} font-sans antialiased`}>
+      <body className={`${dmSans.variable} ${amiri.variable} font-sans antialiased`} suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

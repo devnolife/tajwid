@@ -106,7 +106,7 @@ export default function JadwalManagement() {
         <DialogContent className="rounded-2xl" style={{ background: "#fff" }}>
           <DialogHeader>
             <DialogTitle style={{ color: "#1A1A1A" }}>Tambah Jadwal</DialogTitle>
-            <DialogDescription style={{ color: "#888" }}>Atur jadwal ujian mengaji</DialogDescription>
+            <DialogDescription style={{ color: "#888" }}>Atur jadwal ujian tajwid</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>

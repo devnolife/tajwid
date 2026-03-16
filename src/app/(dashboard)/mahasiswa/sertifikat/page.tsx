@@ -31,7 +31,7 @@ export default function Sertifikat() {
         <h3 className="text-lg font-semibold mb-2" style={{ color: "#1A1A1A" }}>Sertifikat Belum Tersedia</h3>
         <p className="text-sm text-center max-w-md" style={{ color: "#888" }}>
           {!assessment
-            ? "Anda belum menyelesaikan tes mengaji. Sertifikat akan tersedia setelah Anda dinyatakan lulus."
+            ? "Anda belum menyelesaikan tes tajwid. Sertifikat akan tersedia setelah Anda dinyatakan lulus."
             : "Maaf, Anda belum dinyatakan lulus. Silakan hubungi instruktur untuk informasi lebih lanjut."}
         </p>
       </div>
@@ -42,7 +42,7 @@ export default function Sertifikat() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="rounded-2xl border overflow-hidden" style={{ background: "#fff", borderColor: "#e8e4db" }}>
         <div className="p-6">
-          <h3 className="text-lg font-semibold" style={{ color: "#1A1A1A" }}>Sertifikat Kelulusan Mengaji</h3>
+          <h3 className="text-lg font-semibold" style={{ color: "#1A1A1A" }}>Sertifikat Kelulusan TajwidKu</h3>
           <p className="text-sm mt-1" style={{ color: "#888" }}>Selamat! Anda telah dinyatakan lulus.</p>
         </div>
 
@@ -60,7 +60,7 @@ export default function Sertifikat() {
               <Award className="w-12 h-12" style={{ color: "#A2CB8B" }} />
             </div>
             <p className="text-sm font-medium tracking-widest uppercase" style={{ color: "#A2CB8B" }}>Sertifikat Kelulusan</p>
-            <h2 className="text-xl font-serif font-bold mt-2" style={{ color: "#84B179" }}>Ujian Kemampuan Mengaji Al-Quran</h2>
+            <h2 className="text-xl font-serif font-bold mt-2" style={{ color: "#84B179" }}>Ujian Kemampuan Tajwid Al-Quran</h2>
             <div className="my-6">
               <p className="text-sm" style={{ color: "#888" }}>Diberikan kepada:</p>
               <p className="text-2xl font-serif font-bold mt-1" style={{ color: "#1A1A1A" }}>{user?.name}</p>

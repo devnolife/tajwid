@@ -33,7 +33,7 @@ export default function MahasiswaDashboard() {
   const steps = [
     { label: "Pembayaran", done: paymentStatus === "lunas", active: paymentStatus !== "lunas" },
     { label: "Menunggu Jadwal", done: hasSchedule, active: paymentStatus === "lunas" && !hasSchedule },
-    { label: "Tes Mengaji", done: hasResult, active: hasSchedule && !hasResult },
+    { label: "Tes Tajwid", done: hasResult, active: hasSchedule && !hasResult },
     { label: "Penilaian", done: hasResult, active: false },
     { label: "Sertifikat", done: !!passed, active: hasResult && !passed },
   ];

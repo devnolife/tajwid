@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { ArrowLeft, Save, User, CheckCircle } from "lucide-react";
-import type { User as UserType, Assessment } from "@shared/schema";
+import { ArrowLeft, Save, User, CheckCircle, AlertTriangle } from "lucide-react";
+import type { User as UserType, Assessment, Payment } from "@shared/schema";
+import { getMahasiswaPhotoUrl } from "@/lib/mahasiswa-photo";
 
 export default function Penilaian() {
   const router = useRouter();
@@ -36,8 +37,14 @@ export default function Penilaian() {
     enabled: !!studentId,
   });
 
+  const { data: payments } = useQuery<Payment[]>({
+    queryKey: ["/api/payments"],
+  });
+
   const student = students?.find(s => s.id === studentId);
   const existing = existingAssessments?.[0];
+  const studentPayment = payments?.find(p => p.studentId === studentId);
+  const isPaid = studentPayment?.status === "lunas";
 
   useEffect(() => {
     if (existing) {
@@ -107,7 +114,18 @@ export default function Penilaian() {
 
       <div className="rounded-2xl border p-6" style={{ background: "#fff", borderColor: "#e8e4db" }}>
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold" style={{ background: "#84B179", color: "#A2CB8B" }}>
+          <img
+            src={getMahasiswaPhotoUrl(student.nim || "")}
+            alt={student.name}
+            className="w-14 h-14 rounded-full object-cover border-2"
+            style={{ borderColor: "#e8e4db" }}
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = "none";
+              target.nextElementSibling?.classList.remove("hidden");
+            }}
+          />
+          <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold hidden" style={{ background: "#84B179", color: "#fff" }}>
             {student.name.charAt(0)}
           </div>
           <div>
@@ -115,6 +133,18 @@ export default function Penilaian() {
             <p className="text-sm" style={{ color: "#888" }}>NIM: {student.nim} · {student.faculty}</p>
           </div>
         </div>
+
+        {!isPaid && (
+          <div className="rounded-xl p-4 flex items-center gap-3 mb-6" style={{ background: "#FEF2F2" }}>
+            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-red-700">Pembayaran Belum Lunas</p>
+              <p className="text-xs text-red-600 mt-0.5">
+                Mahasiswa ini belum menyelesaikan pembayaran. Penilaian tidak dapat disimpan sampai pembayaran lunas.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-6">
           {scoreCategories.map((cat) => (
@@ -164,9 +194,15 @@ export default function Penilaian() {
         <div className="mt-6">
           <Button
             data-testid="button-simpan-penilaian"
-            onClick={() => setShowConfirm(true)}
+            onClick={() => {
+              if (!isPaid) {
+                toast({ title: "Tidak dapat menyimpan", description: "Pembayaran mahasiswa belum lunas", variant: "destructive" });
+                return;
+              }
+              setShowConfirm(true);
+            }}
             className="rounded-xl h-11 px-8"
-            style={{ background: "#84B179", color: "#fff" }}
+            style={{ background: isPaid ? "#84B179" : "#9CA3AF", color: "#fff" }}
           >
             <Save className="w-4 h-4 mr-2" />
             Simpan Penilaian

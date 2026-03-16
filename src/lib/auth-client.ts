@@ -21,11 +21,10 @@ export function useAuth() {
     specialization: (session.user as any).specialization,
   } : null;
 
-  const login = async (username: string, password: string, role: string) => {
+  const login = async (username: string, password: string) => {
     const result = await nextAuthSignIn("credentials", {
       username,
       password,
-      role,
       redirect: false,
     });
 
@@ -33,8 +32,14 @@ export function useAuth() {
       throw new Error("Username atau password salah");
     }
 
-    router.push(`/${role}/dashboard`);
+    // Refresh session to get the role, then redirect
     router.refresh();
+    // Small delay to allow session to update
+    await new Promise((r) => setTimeout(r, 500));
+    const res = await fetch("/api/auth/session");
+    const session = await res.json();
+    const role = session?.user?.role || "mahasiswa";
+    router.push(`/${role}/dashboard`);
   };
 
   const logout = async () => {

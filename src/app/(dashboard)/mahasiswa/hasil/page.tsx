@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FileText, CheckCircle, XCircle } from "lucide-react";
 import type { Assessment } from "@shared/schema";
 
-export default function HasilMengaji() {
+export default function HasilTajwid() {
   const { user } = useAuth();
 
   const { data: assessments, isLoading } = useQuery<Assessment[]>({
@@ -30,7 +30,7 @@ export default function HasilMengaji() {
         </div>
         <h3 className="text-lg font-semibold mb-2" style={{ color: "#1A1A1A" }}>Belum Ada Hasil Penilaian</h3>
         <p className="text-sm text-center max-w-md" style={{ color: "#888" }}>
-          Hasil penilaian akan muncul setelah Anda menyelesaikan tes mengaji.
+          Hasil penilaian akan muncul setelah Anda menyelesaikan tes tajwid.
         </p>
       </div>
     );
@@ -48,7 +48,7 @@ export default function HasilMengaji() {
       <div className="rounded-2xl border p-6 md:p-8" style={{ background: "#fff", borderColor: "#e8e4db" }}>
         <div className="flex items-start justify-between mb-8">
           <div>
-            <h3 className="text-lg font-semibold" style={{ color: "#1A1A1A" }}>Hasil Penilaian Mengaji</h3>
+            <h3 className="text-lg font-semibold" style={{ color: "#1A1A1A" }}>Hasil Penilaian Tajwid</h3>
             <p className="text-sm mt-1" style={{ color: "#888" }}>
               Dinilai pada {assessment.assessedAt ? new Date(assessment.assessedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}
             </p>

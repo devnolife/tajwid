@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CheckCircle, XCircle, Filter } from "lucide-react";
 import type { User, Payment } from "@shared/schema";
+import { getMahasiswaPhotoUrl } from "@/lib/mahasiswa-photo";
 
 export default function PembayaranManagement() {
   const { toast } = useToast();
@@ -57,6 +58,7 @@ export default function PembayaranManagement() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: "#faf8f3", borderBottom: "1px solid #e8e4db" }}>
+                <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Foto</th>
                 <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>NIM</th>
                 <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Nama</th>
                 <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Jumlah</th>
@@ -70,6 +72,18 @@ export default function PembayaranManagement() {
                 [1, 2, 3].map(i => <tr key={i}><td colSpan={6} className="py-4 px-4"><div className="h-8 bg-gray-100 rounded animate-pulse" /></td></tr>)
               ) : filtered.map(p => (
                 <tr key={p.id} style={{ borderBottom: "1px solid #f0ede6" }} className="hover:bg-[#faf8f3] transition-colors">
+                  <td className="py-3 px-4">
+                    <img
+                      src={getMahasiswaPhotoUrl(getStudentNim(p.studentId))}
+                      alt={getStudentName(p.studentId)}
+                      className="w-9 h-9 rounded-full object-cover border"
+                      style={{ borderColor: "#e8e4db" }}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.outerHTML = `<div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold" style="background:#84B179;color:#fff">${getStudentName(p.studentId).charAt(0)}</div>`;
+                      }}
+                    />
+                  </td>
                   <td className="py-3 px-4 font-mono text-xs" style={{ color: "#84B179" }}>{getStudentNim(p.studentId)}</td>
                   <td className="py-3 px-4 font-medium" style={{ color: "#1A1A1A" }}>{getStudentName(p.studentId)}</td>
                   <td className="py-3 px-4 font-medium" style={{ color: "#84B179" }}>Rp {Number(p.amount).toLocaleString("id-ID")}</td>
@@ -98,7 +112,7 @@ export default function PembayaranManagement() {
                 </tr>
               ))}
               {!isLoading && filtered.length === 0 && (
-                <tr><td colSpan={6} className="py-12 text-center" style={{ color: "#888" }}>Tidak ada data pembayaran</td></tr>
+                <tr><td colSpan={7} className="py-12 text-center" style={{ color: "#888" }}>Tidak ada data pembayaran</td></tr>
               )}
             </tbody>
           </table>

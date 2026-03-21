@@ -18,6 +18,9 @@ export async function PATCH(
 
   try {
     const body = await request.json();
+    if (body.date && typeof body.date === "string") {
+      body.date = new Date(body.date);
+    }
     const schedule = await storage.updateSchedule(id, body);
     if (!schedule) {
       return NextResponse.json({ message: "Not found" }, { status: 404 });

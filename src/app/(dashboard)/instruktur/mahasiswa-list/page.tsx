@@ -15,7 +15,7 @@ export default function DaftarMahasiswa() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("semua");
 
-  const { data: students } = useQuery<Omit<User, "password">[]>({
+  const { data: students, isLoading } = useQuery<Omit<User, "password">[]>({
     queryKey: ["/api/users", "?role=mahasiswa"],
   });
 
@@ -94,39 +94,51 @@ export default function DaftarMahasiswa() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((s) => (
-                <tr
-                  key={s.id}
-                  data-testid={`row-student-${s.id}`}
-                  onClick={() => router.push(`/instruktur/penilaian?studentId=${s.id}`)}
-                  className="cursor-pointer transition-colors hover:bg-[#faf8f3]"
-                  style={{ borderBottom: "1px solid #f0ede6" }}
-                >
-                  <td className="py-3 px-4">
-                    <img
-                      src={getMahasiswaPhotoUrl(s.nim || "")}
-                      alt={s.name}
-                      className="w-9 h-9 rounded-full object-cover border"
-                      style={{ borderColor: "#e8e4db" }}
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.outerHTML = `<div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold" style="background:#84B179;color:#fff">${s.name.charAt(0)}</div>`;
-                      }}
-                    />
-                  </td>
-                  <td className="py-3 px-4 font-mono text-xs" style={{ color: "#84B179" }}>{s.nim}</td>
-                  <td className="py-3 px-4 font-medium" style={{ color: "#1A1A1A" }}>{s.name}</td>
-                  <td className="py-3 px-4" style={{ color: "#666" }}>{s.faculty}</td>
-                  <td className="py-3 px-4"><StatusBadge status={getPaymentStatus(s.id)} /></td>
-                  <td className="py-3 px-4"><StatusBadge status={getStudentStatus(s.id)} /></td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center" style={{ color: "#888" }}>
-                    Tidak ada data mahasiswa ditemukan
-                  </td>
-                </tr>
+              {isLoading ? (
+                [1, 2, 3, 4, 5].map(i => (
+                  <tr key={i} style={{ borderBottom: "1px solid #f0ede6" }}>
+                    <td colSpan={6} className="py-4 px-4">
+                      <div className="h-8 bg-gray-100 rounded animate-pulse" />
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <>
+                  {filtered.map((s) => (
+                    <tr
+                      key={s.id}
+                      data-testid={`row-student-${s.id}`}
+                      onClick={() => router.push(`/instruktur/penilaian?studentId=${s.id}`)}
+                      className="cursor-pointer transition-colors hover:bg-[#faf8f3]"
+                      style={{ borderBottom: "1px solid #f0ede6" }}
+                    >
+                      <td className="py-3 px-4">
+                        <img
+                          src={getMahasiswaPhotoUrl(s.nim || "")}
+                          alt={s.name}
+                          className="w-9 h-9 rounded-full object-cover border"
+                          style={{ borderColor: "#e8e4db" }}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.outerHTML = `<div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold" style="background:#84B179;color:#fff">${s.name.charAt(0)}</div>`;
+                          }}
+                        />
+                      </td>
+                      <td className="py-3 px-4 font-mono text-xs" style={{ color: "#84B179" }}>{s.nim}</td>
+                      <td className="py-3 px-4 font-medium" style={{ color: "#1A1A1A" }}>{s.name}</td>
+                      <td className="py-3 px-4" style={{ color: "#666" }}>{s.faculty}</td>
+                      <td className="py-3 px-4"><StatusBadge status={getPaymentStatus(s.id)} /></td>
+                      <td className="py-3 px-4"><StatusBadge status={getStudentStatus(s.id)} /></td>
+                    </tr>
+                  ))}
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center" style={{ color: "#888" }}>
+                        Tidak ada data mahasiswa ditemukan
+                      </td>
+                    </tr>
+                  )}
+                </>
               )}
             </tbody>
           </table>

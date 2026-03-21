@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Search, Plus, Pencil, Trash2, Download, Upload } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Download, Upload, Loader2 } from "lucide-react";
 import type { User, Payment, Assessment } from "@shared/schema";
 import { getMahasiswaPhotoUrl } from "@/lib/mahasiswa-photo";
 
@@ -19,6 +19,7 @@ export default function MahasiswaManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", nim: "", username: "", password: "password123", faculty: "", program: "", email: "", phone: "" });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: students, isLoading } = useQuery<Omit<User, "password">[]>({
     queryKey: ["/api/users", "?role=mahasiswa"],
@@ -46,10 +47,17 @@ export default function MahasiswaManagement() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/users/${id}`),
+    mutationFn: (id: string) => {
+      setDeletingId(id);
+      return apiRequest("DELETE", `/api/users/${id}`);
+    },
     onSuccess: () => {
+      setDeletingId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       toast({ title: "Berhasil", description: "Mahasiswa dihapus" });
+    },
+    onError: () => {
+      setDeletingId(null);
     },
   });
 
@@ -148,8 +156,8 @@ export default function MahasiswaManagement() {
                       <button data-testid={`edit-student-${s.id}`} onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: "#84B179" }}>
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button data-testid={`delete-student-${s.id}`} onClick={() => deleteMutation.mutate(s.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500">
-                        <Trash2 className="w-3.5 h-3.5" />
+                      <button data-testid={`delete-student-${s.id}`} onClick={() => deleteMutation.mutate(s.id)} disabled={deletingId === s.id} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500 disabled:opacity-50">
+                        {deletingId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                   </td>

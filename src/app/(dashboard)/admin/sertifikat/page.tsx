@@ -8,8 +8,10 @@ import type { User, Assessment } from "@shared/schema";
 
 export default function SertifikatManagement() {
   const { toast } = useToast();
-  const { data: assessments } = useQuery<Assessment[]>({ queryKey: ["/api/assessments"] });
-  const { data: students } = useQuery<Omit<User, "password">[]>({ queryKey: ["/api/users", "?role=mahasiswa"] });
+
+  const { data: assessments, isLoading: isLoadingAssessments } = useQuery<Assessment[]>({ queryKey: ["/api/assessments"] });
+  const { data: students, isLoading: isLoadingStudents } = useQuery<Omit<User, "password">[]>({ queryKey: ["/api/users", "?role=mahasiswa"] });
+  const isLoading = isLoadingAssessments || isLoadingStudents;
 
   const passedStudents = assessments?.filter(a => a.passed) || [];
   const getStudent = (id: string) => students?.find(s => s.id === id);
@@ -30,7 +32,23 @@ export default function SertifikatManagement() {
         </Button>
       </div>
 
-      {passedStudents.length === 0 ? (
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="rounded-2xl border p-5" style={{ borderColor: "#e8e4db" }}>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-full bg-gray-100 flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-32 rounded bg-gray-100" />
+                  <div className="h-3 w-48 rounded bg-gray-100" />
+                  <div className="h-3 w-28 rounded bg-gray-100" />
+                </div>
+                <div className="h-8 w-8 rounded-lg bg-gray-100" />
+              </div>
+            </div>
+          ))}
+         </div>
+      ) : passedStudents.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Award className="w-16 h-16 mb-4" style={{ color: "#ccc" }} />
           <h3 className="text-lg font-semibold mb-2" style={{ color: "#1A1A1A" }}>Belum Ada Sertifikat</h3>
@@ -56,7 +74,7 @@ export default function SertifikatManagement() {
                     variant="outline"
                     size="sm"
                     className="rounded-lg"
-                    onClick={() => toast({ title: "Info", description: "Fitur download sertifikat akan segera tersedia" })}
+                    onClick={() => window.open(`/certificate?studentId=${a.studentId}`, "_blank")}
                   >
                     <Download className="w-3.5 h-3.5" />
                   </Button>

@@ -19,6 +19,9 @@ export async function PATCH(
 
   try {
     const body = await request.json();
+    if (body.assessedAt && typeof body.assessedAt === "string") {
+      body.assessedAt = new Date(body.assessedAt);
+    }
     const assessment = await storage.updateAssessment(id, body);
     if (!assessment) {
       return NextResponse.json({ message: "Not found" }, { status: 404 });

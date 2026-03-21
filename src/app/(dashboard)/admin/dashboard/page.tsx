@@ -7,21 +7,23 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import type { User, Payment, Assessment } from "@shared/schema";
 
 export default function AdminDashboard() {
-  const { data: students } = useQuery<Omit<User, "password">[]>({
+  const { data: students, isLoading: isLoadingStudents } = useQuery<Omit<User, "password">[]>({
     queryKey: ["/api/users", "?role=mahasiswa"],
   });
 
-  const { data: instructors } = useQuery<Omit<User, "password">[]>({
+  const { data: instructors, isLoading: isLoadingInstructors } = useQuery<Omit<User, "password">[]>({
     queryKey: ["/api/users", "?role=instruktur"],
   });
 
-  const { data: payments } = useQuery<Payment[]>({
+  const { data: payments, isLoading: isLoadingPayments } = useQuery<Payment[]>({
     queryKey: ["/api/payments"],
   });
 
-  const { data: assessments } = useQuery<Assessment[]>({
+  const { data: assessments, isLoading: isLoadingAssessments } = useQuery<Assessment[]>({
     queryKey: ["/api/assessments"],
   });
+
+  const isLoading = isLoadingStudents || isLoadingInstructors || isLoadingPayments || isLoadingAssessments;
 
   const totalStudents = students?.length || 0;
   const totalInstructors = instructors?.length || 0;
@@ -44,6 +46,22 @@ export default function AdminDashboard() {
     { month: "Apr", count: 0 },
     { month: "Mei", count: 0 },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-28" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="animate-pulse bg-gray-100 rounded-2xl h-80" />
+          <div className="animate-pulse bg-gray-100 rounded-2xl h-80" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">

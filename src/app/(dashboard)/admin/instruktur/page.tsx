@@ -8,14 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, EyeOff, Loader2 } from "lucide-react";
 import type { User, Schedule } from "@shared/schema";
 
 export default function InstrukturManagement() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", username: "", password: "password123", specialization: "", email: "", phone: "" });
+  const [form, setForm] = useState({ name: "", username: "", password: "password123", email: "", phone: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: instructors, isLoading } = useQuery<Omit<User, "password">[]>({
     queryKey: ["/api/users", "?role=instruktur"],
@@ -28,7 +30,8 @@ export default function InstrukturManagement() {
       const data: any = { ...form, role: "instruktur" };
       if (editingId) {
         const { password, ...updateData } = data;
-        await apiRequest("PATCH", `/api/users/${editingId}`, updateData);
+        const payload = password ? { ...updateData, password } : updateData;
+        await apiRequest("PATCH", `/api/users/${editingId}`, payload);
       } else {
         await apiRequest("POST", "/api/users", data);
       }
@@ -42,22 +45,29 @@ export default function InstrukturManagement() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/users/${id}`),
+    mutationFn: (id: string) => {
+      setDeletingId(id);
+      return apiRequest("DELETE", `/api/users/${id}`);
+    },
     onSuccess: () => {
+      setDeletingId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       toast({ title: "Berhasil", description: "Instruktur dihapus" });
+    },
+    onError: () => {
+      setDeletingId(null);
     },
   });
 
   const resetForm = () => {
     setShowForm(false);
     setEditingId(null);
-    setForm({ name: "", username: "", password: "password123", specialization: "", email: "", phone: "" });
+    setForm({ name: "", username: "", password: "password123", email: "", phone: "" });
   };
 
   const openEdit = (s: Omit<User, "password">) => {
     setEditingId(s.id);
-    setForm({ name: s.name, username: s.username, password: "", specialization: s.specialization || "", email: s.email || "", phone: s.phone || "" });
+    setForm({ name: s.name, username: s.username, password: "", email: s.email || "", phone: s.phone || "" });
     setShowForm(true);
   };
 
@@ -82,7 +92,6 @@ export default function InstrukturManagement() {
             <thead>
               <tr style={{ background: "#faf8f3", borderBottom: "1px solid #e8e4db" }}>
                 <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Nama</th>
-                <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Spesialisasi</th>
                 <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>No. Telepon</th>
                 <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Mahasiswa</th>
                 <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Aksi</th>
@@ -90,11 +99,10 @@ export default function InstrukturManagement() {
             </thead>
             <tbody>
               {isLoading ? (
-                [1, 2].map(i => <tr key={i}><td colSpan={5} className="py-4 px-4"><div className="h-8 bg-gray-100 rounded animate-pulse" /></td></tr>)
+                [1, 2].map(i => <tr key={i}><td colSpan={4} className="py-4 px-4"><div className="h-8 bg-gray-100 rounded animate-pulse" /></td></tr>)
               ) : instructors?.map(s => (
                 <tr key={s.id} style={{ borderBottom: "1px solid #f0ede6" }} className="hover:bg-[#faf8f3] transition-colors">
                   <td className="py-3 px-4 font-medium" style={{ color: "#1A1A1A" }}>{s.name}</td>
-                  <td className="py-3 px-4" style={{ color: "#666" }}>{s.specialization || "-"}</td>
                   <td className="py-3 px-4" style={{ color: "#666" }}>{s.phone || "-"}</td>
                   <td className="py-3 px-4">
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: "#E0E7FF", color: "#4F46E5" }}>
@@ -106,8 +114,8 @@ export default function InstrukturManagement() {
                       <button data-testid={`edit-instruktur-${s.id}`} onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: "#84B179" }}>
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button data-testid={`delete-instruktur-${s.id}`} onClick={() => deleteMutation.mutate(s.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500">
-                        <Trash2 className="w-3.5 h-3.5" />
+                      <button data-testid={`delete-instruktur-${s.id}`} onClick={() => deleteMutation.mutate(s.id)} disabled={deletingId === s.id} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500 disabled:opacity-50">
+                        {deletingId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                   </td>
@@ -128,21 +136,36 @@ export default function InstrukturManagement() {
           </DialogHeader>
           <div className="space-y-4">
             {[
-              { key: "name", label: "Nama Lengkap" },
-              { key: "username", label: "Username" },
-              { key: "specialization", label: "Spesialisasi" },
-              { key: "email", label: "Email" },
-              { key: "phone", label: "No. Telepon" },
+              { key: "name", label: "Nama Lengkap", type: "text" },
+              { key: "username", label: "Username", type: "text" },
+              { key: "password", label: editingId ? "Password (kosongkan jika tidak diubah)" : "Password", type: "password" },
+              { key: "email", label: "Email", type: "email" },
+              { key: "phone", label: "No. Telepon", type: "tel" },
             ].map(field => (
               <div key={field.key}>
                 <Label className="text-xs font-medium" style={{ color: "#666" }}>{field.label}</Label>
-                <Input
-                  data-testid={`input-instruktur-${field.key}`}
-                  value={(form as any)[field.key]}
-                  onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
-                  className="mt-1 rounded-xl h-10"
-                  style={{ background: "#faf8f3", borderColor: "#e8e4db" }}
-                />
+                <div className="relative">
+                  <Input
+                    data-testid={`input-instruktur-${field.key}`}
+                    type={field.key === "password" ? (showPassword ? "text" : "password") : field.type}
+                    value={(form as any)[field.key]}
+                    onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+                    className="mt-1 rounded-xl h-10"
+                    style={{ background: "#faf8f3", borderColor: "#e8e4db" }}
+                    placeholder={field.key === "password" && editingId ? "••••••••" : ""}
+                  />
+                  {field.key === "password" && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5 p-0.5 rounded hover:bg-gray-100 transition-colors"
+                      style={{ color: "#888" }}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

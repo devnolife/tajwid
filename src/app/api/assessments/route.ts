@@ -38,6 +38,9 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
+    if (body.assessedAt && typeof body.assessedAt === "string") {
+      body.assessedAt = new Date(body.assessedAt);
+    }
     const assessment = await storage.createAssessment(body);
     return NextResponse.json(assessment);
   } catch (e: any) {

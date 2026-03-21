@@ -9,17 +9,19 @@ import type { Payment, Schedule, Assessment } from "@shared/schema";
 export default function MahasiswaDashboard() {
   const { user } = useAuth();
 
-  const { data: payments } = useQuery<Payment[]>({
+  const { data: payments, isLoading: isLoadingPayments } = useQuery<Payment[]>({
     queryKey: ["/api/payments", `?studentId=${user?.id}`],
   });
 
-  const { data: schedules } = useQuery<Schedule[]>({
+  const { data: schedules, isLoading: isLoadingSchedules } = useQuery<Schedule[]>({
     queryKey: ["/api/schedules", `?studentId=${user?.id}`],
   });
 
-  const { data: assessments } = useQuery<Assessment[]>({
+  const { data: assessments, isLoading: isLoadingAssessments } = useQuery<Assessment[]>({
     queryKey: ["/api/assessments", `?studentId=${user?.id}`],
   });
+
+  const isLoading = isLoadingPayments || isLoadingSchedules || isLoadingAssessments;
 
   const payment = payments?.[0];
   const schedule = schedules?.[0];
@@ -43,6 +45,20 @@ export default function MahasiswaDashboard() {
     menunggu_verifikasi: "Menunggu Verifikasi",
     lunas: "Lunas",
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="animate-pulse bg-gray-100 rounded-2xl h-32" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-28" />
+          ))}
+        </div>
+        <div className="animate-pulse bg-gray-100 rounded-2xl h-48" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">

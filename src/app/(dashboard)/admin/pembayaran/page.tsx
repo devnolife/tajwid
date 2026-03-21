@@ -7,26 +7,32 @@ import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, XCircle, Filter } from "lucide-react";
+import { CheckCircle, XCircle, Filter, Loader2 } from "lucide-react";
 import type { User, Payment } from "@shared/schema";
 import { getMahasiswaPhotoUrl } from "@/lib/mahasiswa-photo";
 
 export default function PembayaranManagement() {
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState("semua");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const { data: payments, isLoading } = useQuery<Payment[]>({ queryKey: ["/api/payments"] });
   const { data: students } = useQuery<Omit<User, "password">[]>({ queryKey: ["/api/users", "?role=mahasiswa"] });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      setUpdatingId(id);
       const data: any = { status };
       if (status === "lunas") data.paidAt = new Date().toISOString();
       await apiRequest("PATCH", `/api/payments/${id}`, data);
     },
     onSuccess: () => {
+      setUpdatingId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
       toast({ title: "Berhasil", description: "Status pembayaran diperbarui" });
+    },
+    onError: () => {
+      setUpdatingId(null);
     },
   });
 
@@ -96,15 +102,17 @@ export default function PembayaranManagement() {
                           data-testid={`verify-payment-${p.id}`}
                           onClick={() => updateMutation.mutate({ id: p.id, status: "lunas" })}
                           className="p-1.5 rounded-lg hover:bg-green-50 transition-colors text-green-600"
+                          disabled={updatingId === p.id}
                         >
-                          <CheckCircle className="w-4 h-4" />
+                          {updatingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                         </button>
                         <button
                           data-testid={`reject-payment-${p.id}`}
                           onClick={() => updateMutation.mutate({ id: p.id, status: "ditolak" })}
                           className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500"
+                          disabled={updatingId === p.id}
                         >
-                          <XCircle className="w-4 h-4" />
+                          {updatingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                         </button>
                       </div>
                     )}

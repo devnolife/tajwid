@@ -37,6 +37,9 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
+    if (body.date && typeof body.date === "string") {
+      body.date = new Date(body.date);
+    }
     const schedule = await storage.createSchedule(body);
     return NextResponse.json(schedule);
   } catch (e: any) {

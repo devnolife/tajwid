@@ -55,18 +55,35 @@ export const assessments = pgTable("assessments", {
   assessedAt: timestamp("assessed_at").defaultNow(),
 });
 
+export const certificates = pgTable("certificates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  certificateNumber: text("certificate_number").notNull().unique(),
+  studentId: varchar("student_id").notNull().references(() => users.id),
+  assessmentId: varchar("assessment_id").notNull().references(() => assessments.id),
+  studentName: text("student_name").notNull(),
+  studentNim: text("student_nim"),
+  studentFaculty: text("student_faculty"),
+  studentProgram: text("student_program"),
+  totalScore: integer("total_score").notNull(),
+  academicYear: text("academic_year").notNull().default("2025/2026"),
+  signerName: text("signer_name").notNull().default("Dr. Alamsyah, S.Pd.I., M.H."),
+  signerTitle: text("signer_title").notNull().default("Wakil Dekan IV"),
+  issuedAt: timestamp("issued_at").defaultNow(),
+});
+
 export const settings = pgTable("settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   appName: text("app_name").notNull().default("TajwidKu"),
   academicYear: text("academic_year").notNull().default("2025/2026"),
   passingScore: integer("passing_score").notNull().default(70),
-  paymentAmount: decimal("payment_amount", { precision: 12, scale: 2 }).notNull().default("150000"),
+  paymentAmount: decimal("payment_amount", { precision: 12, scale: 2 }).notNull().default("25000"),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true });
 export const insertScheduleSchema = createInsertSchema(schedules).omit({ id: true });
 export const insertAssessmentSchema = createInsertSchema(assessments).omit({ id: true });
+export const insertCertificateSchema = createInsertSchema(certificates).omit({ id: true });
 export const insertSettingsSchema = createInsertSchema(settings).omit({ id: true });
 
 export const loginSchema = z.object({
@@ -83,6 +100,8 @@ export type InsertSchedule = z.infer<typeof insertScheduleSchema>;
 export type Schedule = typeof schedules.$inferSelect;
 export type InsertAssessment = z.infer<typeof insertAssessmentSchema>;
 export type Assessment = typeof assessments.$inferSelect;
+export type InsertCertificate = z.infer<typeof insertCertificateSchema>;
+export type Certificate = typeof certificates.$inferSelect;
 export type InsertSettings = z.infer<typeof insertSettingsSchema>;
 export type Settings = typeof settings.$inferSelect;
 export type LoginData = z.infer<typeof loginSchema>;

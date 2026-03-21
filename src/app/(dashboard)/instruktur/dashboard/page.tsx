@@ -9,17 +9,19 @@ import type { Schedule, Assessment, User } from "@shared/schema";
 export default function InstrukturDashboard() {
   const { user } = useAuth();
 
-  const { data: schedules } = useQuery<Schedule[]>({
+  const { data: schedules, isLoading: isLoadingSchedules } = useQuery<Schedule[]>({
     queryKey: ["/api/schedules", `?instructorId=${user?.id}`],
   });
 
-  const { data: assessments } = useQuery<Assessment[]>({
+  const { data: assessments, isLoading: isLoadingAssessments } = useQuery<Assessment[]>({
     queryKey: ["/api/assessments", `?instructorId=${user?.id}`],
   });
 
-  const { data: allStudents } = useQuery<Omit<User, "password">[]>({
+  const { data: allStudents, isLoading: isLoadingStudents } = useQuery<Omit<User, "password">[]>({
     queryKey: ["/api/users", "?role=mahasiswa"],
   });
+
+  const isLoading = isLoadingSchedules || isLoadingAssessments || isLoadingStudents;
 
   const totalAssigned = schedules?.length || 0;
   const tested = assessments?.length || 0;
@@ -35,6 +37,20 @@ export default function InstrukturDashboard() {
     const d = new Date(s.date);
     return d >= today && d < tomorrow;
   }) || [];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="animate-pulse bg-gray-100 rounded-2xl h-32" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-28" />
+          ))}
+        </div>
+        <div className="animate-pulse bg-gray-100 rounded-2xl h-64" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">

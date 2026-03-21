@@ -7,13 +7,6 @@ import { fetchMahasiswaByNim } from "@/lib/graphql-campus";
 
 // Akun uji coba (development) — aktif ketika DB/API tidak tersedia
 const TEST_ACCOUNTS: Record<string, { password: string; name: string; role: string; nim?: string; program?: string }> = {
-  "105841108421": {
-    password: md5Hash("tajwid123"),
-    name: "Mahasiswa Uji Coba",
-    role: "mahasiswa",
-    nim: "105841108421",
-    program: "Teknik Informatika",
-  },
   admin: {
     password: "admin123",
     name: "Administrator Sistem",
@@ -53,6 +46,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               if (user.password !== hashedPassword || user.role !== "mahasiswa") {
                 return null;
               }
+
+              // Sinkronkan nama dari GraphQL kampus agar selalu up-to-date
+              try {
+                const mahasiswa = await fetchMahasiswaByNim(nim);
+                if (mahasiswa && mahasiswa.nama && mahasiswa.nama !== user.name) {
+                  await storage.updateUser(user.id, {
+                    name: mahasiswa.nama,
+                    email: mahasiswa.email || user.email,
+                    phone: mahasiswa.hp || user.phone,
+                    program: mahasiswa.prodi || user.program,
+                  });
+                  user.name = mahasiswa.nama;
+                  user.email = mahasiswa.email || user.email;
+                }
+              } catch {
+                // GraphQL tidak tersedia — gunakan data lokal
+              }
+
               return {
                 id: user.id,
                 name: user.name,

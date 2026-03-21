@@ -9,13 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Plus, Trash2, Calendar, MapPin, Clock } from "lucide-react";
+import { Plus, Trash2, Calendar, MapPin, Clock, Loader2 } from "lucide-react";
 import type { User, Schedule } from "@shared/schema";
 
 export default function JadwalManagement() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ studentId: "", instructorId: "", date: "", time: "", room: "", location: "" });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: schedules, isLoading } = useQuery<Schedule[]>({ queryKey: ["/api/schedules"] });
   const { data: students } = useQuery<Omit<User, "password">[]>({ queryKey: ["/api/users", "?role=mahasiswa"] });
@@ -42,10 +43,17 @@ export default function JadwalManagement() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/schedules/${id}`),
+    mutationFn: (id: string) => {
+      setDeletingId(id);
+      return apiRequest("DELETE", `/api/schedules/${id}`);
+    },
     onSuccess: () => {
+      setDeletingId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/schedules"] });
       toast({ title: "Berhasil", description: "Jadwal dihapus" });
+    },
+    onError: () => {
+      setDeletingId(null);
     },
   });
 
@@ -80,9 +88,10 @@ export default function JadwalManagement() {
                 <button
                   data-testid={`delete-schedule-${s.id}`}
                   onClick={() => deleteMutation.mutate(s.id)}
-                  className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-400"
+                  disabled={deletingId === s.id}
+                  className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-400 disabled:opacity-50"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  {deletingId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 </button>
               </div>
               <p className="text-sm font-semibold" style={{ color: "#1A1A1A" }}>{getStudentName(s.studentId)}</p>

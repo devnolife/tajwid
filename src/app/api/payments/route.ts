@@ -31,6 +31,12 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
+    if (body.dueDate && typeof body.dueDate === "string") {
+      body.dueDate = new Date(body.dueDate);
+    }
+    if (body.paidAt && typeof body.paidAt === "string") {
+      body.paidAt = new Date(body.paidAt);
+    }
     const payment = await storage.createPayment(body);
     return NextResponse.json(payment);
   } catch (e: any) {

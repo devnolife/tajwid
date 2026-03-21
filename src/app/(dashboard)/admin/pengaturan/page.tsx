@@ -18,7 +18,7 @@ export default function Pengaturan() {
     appName: "TajwidKu",
     academicYear: "2025/2026",
     passingScore: 70,
-    paymentAmount: "150000",
+    paymentAmount: "25000",
   });
 
   useEffect(() => {

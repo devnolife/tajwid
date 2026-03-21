@@ -74,28 +74,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <aside
         className="hidden lg:flex flex-col border-r transition-all duration-300 relative"
         style={{
-          width: collapsed ? 72 : 260,
+          width: collapsed ? 80 : 280,
           background: "linear-gradient(180deg, #84B179 0%, #6a9960 100%)",
           borderColor: "rgba(200, 234, 187, 0.15)",
         }}
       >
-        <div className="flex items-center gap-3 px-4 h-16 border-b" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
-          <img src="/logo/logo.png" alt="TajwidKu" className="w-9 h-9 object-contain flex-shrink-0" />
+        <div className="flex items-center gap-3 px-5 h-[72px] border-b" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+          <img src="/logo/logo.png" alt="TajwidKu" className="w-10 h-10 object-contain flex-shrink-0" />
           {!collapsed && (
-            <span className="font-serif text-xl font-bold text-white">TajwidKu</span>
+            <span className="font-serif text-2xl font-bold text-white">TajwidKu</span>
           )}
         </div>
 
         <button
           data-testid="toggle-sidebar"
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3 top-20 w-6 h-6 rounded-full border flex items-center justify-center z-10 shadow-sm transition-colors"
+          className="absolute -right-3.5 top-[88px] w-7 h-7 rounded-full border flex items-center justify-center z-10 shadow-sm transition-colors"
           style={{ background: "#FAF7F0", borderColor: "#e0ddd6", color: "#84B179" }}
         >
-          {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+          {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
         </button>
 
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 py-5 px-4 space-y-1.5 overflow-y-auto">
           {items.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -104,38 +104,38 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 key={item.label}
                 href={item.href}
                 data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group"
+                className="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 group"
                 style={{
                   background: active ? "rgba(255,255,255,0.18)" : "transparent",
                   color: active ? "#fff" : "rgba(255,255,255,0.7)",
                 }}
               >
-                <Icon className="w-5 h-5 flex-shrink-0" />
+                <Icon className="w-[22px] h-[22px] flex-shrink-0" />
                 {!collapsed && (
-                  <span className="text-sm font-medium truncate">{item.label}</span>
+                  <span className="text-[15px] font-medium truncate">{item.label}</span>
                 )}
               </Link>
             );
           })}
         </nav>
 
-        <div className="px-3 pb-4 border-t pt-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+        <div className="px-4 pb-5 border-t pt-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
           {!collapsed && (
-            <div className="px-3 pb-3">
-              <p className="text-sm font-medium truncate text-white">{user.name ?? ""}</p>
+            <div className="px-4 pb-3">
+              <p className="text-[15px] font-semibold truncate text-white">{user.name ?? ""}</p>
               <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.6)" }}>
-                {user.role === "mahasiswa" ? user.nim : user.role === "instruktur" ? "Instruktur" : "Administrator"}
+                {user.role === "mahasiswa" ? `NIM ${user.nim}` : user.role === "instruktur" ? "Instruktur" : "Administrator"}
               </p>
             </div>
           )}
           <button
             data-testid="button-logout"
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200"
-            style={{ color: "rgba(255,255,255,0.6)" }}
+            className="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/10"
+            style={{ color: "rgba(255,255,255,0.7)" }}
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span className="text-sm">Keluar</span>}
+            <LogOut className="w-[22px] h-[22px] flex-shrink-0" />
+            {!collapsed && <span className="text-[15px] font-medium">Keluar</span>}
           </button>
         </div>
       </aside>
@@ -145,6 +145,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <header className="hidden lg:flex h-16 items-center justify-between px-8 border-b" style={{ borderColor: "#e8e4db", background: "rgba(250, 247, 240, 0.8)", backdropFilter: "blur(8px)" }}>
           <h2 className="text-lg font-semibold" style={{ color: "#1A1A1A" }}>{pageTitle}</h2>
           <div className="flex items-center gap-3">
+            <div className="text-right mr-1">
+              <p className="text-sm font-semibold leading-tight" style={{ color: "#1A1A1A" }}>{user.name ?? ""}</p>
+              <p className="text-xs leading-tight" style={{ color: "#888" }}>
+                {user.role === "mahasiswa" ? `NIM ${user.nim}` : user.role === "instruktur" ? "Instruktur" : "Administrator"}
+              </p>
+            </div>
             {user.role === "mahasiswa" && user.nim ? (
               <img
                 src={getMahasiswaPhotoUrl(user.nim)}
@@ -164,7 +170,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* Header — mobile (<lg) with 3 logos */}
+        {/* Header — mobile (<lg) */}
         <header
           className="flex lg:hidden items-center justify-between px-4 border-b sticky top-0 z-30"
           style={{
@@ -181,9 +187,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <span className="font-serif text-sm font-bold ml-1 whitespace-nowrap" style={{ color: "#84B179" }}>TajwidKu</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium truncate max-w-[100px]" style={{ color: "#666" }}>
-              {user.name ?? ""}
-            </span>
+            <div className="text-right">
+              <p className="text-xs font-semibold truncate max-w-[120px] leading-tight" style={{ color: "#1A1A1A" }}>
+                {user.name ?? ""}
+              </p>
+              <p className="text-[10px] leading-tight" style={{ color: "#888" }}>
+                {user.role === "mahasiswa" ? user.nim : user.role === "instruktur" ? "Instruktur" : "Admin"}
+              </p>
+            </div>
             {user.role === "mahasiswa" && user.nim ? (
               <img
                 src={getMahasiswaPhotoUrl(user.nim)}

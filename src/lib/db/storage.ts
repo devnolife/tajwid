@@ -4,7 +4,8 @@ import {
   type Schedule, type InsertSchedule,
   type Assessment, type InsertAssessment,
   type Settings, type InsertSettings,
-  users, payments, schedules, assessments, settings,
+  type Certificate, type InsertCertificate,
+  users, payments, schedules, assessments, settings, certificates,
 } from "@shared/schema";
 import { db } from "@/lib/db";
 import { eq, and, desc } from "drizzle-orm";
@@ -41,6 +42,10 @@ export interface IStorage {
 
   getSettings(): Promise<Settings | undefined>;
   updateSettings(data: Partial<InsertSettings>): Promise<Settings | undefined>;
+
+  getCertificateByNumber(certificateNumber: string): Promise<Certificate | undefined>;
+  getCertificateByStudent(studentId: string): Promise<Certificate | undefined>;
+  createCertificate(certificate: InsertCertificate): Promise<Certificate>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -171,6 +176,21 @@ export class DatabaseStorage implements IStorage {
       return updated;
     }
     const [created] = await db.insert(settings).values(data as InsertSettings).returning();
+    return created;
+  }
+
+  async getCertificateByNumber(certificateNumber: string): Promise<Certificate | undefined> {
+    const [cert] = await db.select().from(certificates).where(eq(certificates.certificateNumber, certificateNumber));
+    return cert;
+  }
+
+  async getCertificateByStudent(studentId: string): Promise<Certificate | undefined> {
+    const [cert] = await db.select().from(certificates).where(eq(certificates.studentId, studentId));
+    return cert;
+  }
+
+  async createCertificate(certificate: InsertCertificate): Promise<Certificate> {
+    const [created] = await db.insert(certificates).values(certificate).returning();
     return created;
   }
 }

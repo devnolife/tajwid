@@ -28,7 +28,7 @@ export default function Penilaian() {
   const [adab, setAdab] = useState(70);
   const [notes, setNotes] = useState("");
 
-  const { data: students } = useQuery<Omit<UserType, "password">[]>({
+  const { data: students, isLoading: isLoadingStudents } = useQuery<Omit<UserType, "password">[]>({
     queryKey: ["/api/users", "?role=mahasiswa"],
   });
 
@@ -88,6 +88,38 @@ export default function Penilaian() {
       toast({ title: "Gagal", description: "Terjadi kesalahan saat menyimpan", variant: "destructive" });
     },
   });
+
+  if (studentId && isLoadingStudents) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500 animate-pulse">
+        <div className="h-5 w-36 rounded bg-gray-100" />
+        <div className="rounded-2xl border p-6" style={{ borderColor: "#e8e4db" }}>
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-14 h-14 rounded-full bg-gray-100" />
+            <div className="space-y-2">
+              <div className="h-5 w-40 rounded bg-gray-100" />
+              <div className="h-4 w-56 rounded bg-gray-100" />
+            </div>
+          </div>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="space-y-3 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="h-4 w-32 rounded bg-gray-100" />
+                  <div className="h-3 w-48 rounded bg-gray-100" />
+                </div>
+                <div className="h-6 w-10 rounded bg-gray-100" />
+              </div>
+              <div className="h-4 w-full rounded bg-gray-100" />
+            </div>
+          ))}
+          <div className="h-20 rounded-xl bg-gray-100 mt-6" />
+          <div className="h-24 rounded-xl bg-gray-100 mt-6" />
+          <div className="h-11 w-40 rounded-xl bg-gray-100 mt-6" />
+        </div>
+      </div>
+    );
+  }
 
   if (!studentId || !student) {
     return (

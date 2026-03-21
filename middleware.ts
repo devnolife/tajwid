@@ -6,6 +6,10 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
 
   // Public routes
+  if (pathname.startsWith("/verify") || pathname.startsWith("/api/certificates/verify")) {
+    return NextResponse.next();
+  }
+
   if (pathname === "/login" || pathname.startsWith("/api/auth")) {
     if (isLoggedIn && pathname === "/login") {
       const role = req.auth?.user?.role || "mahasiswa";

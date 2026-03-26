@@ -489,6 +489,59 @@ async function testPayments() {
   assert(mhsGet.status === 200, "GET /api/payments (mahasiswa) → 200 (read allowed)");
 }
 
+// ─── Certificate Check API (Public, API Key) ────────────
+
+async function testCertificateCheck() {
+  console.log("\n🔑 CERTIFICATE CHECK API TESTS");
+  console.log("─".repeat(50));
+
+  const API_KEY = process.env.CERTIFICATE_API_KEY || "tajwid-unismuh-2026";
+
+  // Test 1: No API key → 401
+  const noKey = await fetch(`${BASE_URL}/api/certificates/check?nim=test`);
+  assert(noKey.status === 401, "Tanpa x-api-key → 401");
+
+  // Test 2: Wrong API key → 401
+  const wrongKey = await fetch(`${BASE_URL}/api/certificates/check?nim=test`, {
+    headers: { "x-api-key": "wrong-key" },
+  });
+  assert(wrongKey.status === 401, "API key salah → 401");
+
+  // Test 3: Missing NIM parameter → 400
+  const noNim = await fetch(`${BASE_URL}/api/certificates/check`, {
+    headers: { "x-api-key": API_KEY },
+  });
+  assert(noNim.status === 400, "Tanpa parameter nim → 400");
+
+  // Test 4: NIM not found
+  const notFound = await fetch(`${BASE_URL}/api/certificates/check?nim=99999999`, {
+    headers: { "x-api-key": API_KEY },
+  });
+  const notFoundData = await notFound.json();
+  assert(notFound.status === 200 && notFoundData.found === false, "NIM tidak ada → found: false");
+
+  // Test 5: Valid NIM (get a real one from the DB)
+  const usersRes = await api("GET", "/api/users?role=mahasiswa", state.adminCookies);
+  const users = usersRes.data;
+  if (Array.isArray(users) && users.length > 0 && users[0].nim) {
+    const nim = users[0].nim;
+    const validRes = await fetch(`${BASE_URL}/api/certificates/check?nim=${nim}`, {
+      headers: { "x-api-key": API_KEY },
+    });
+    const validData = await validRes.json();
+    assert(validRes.status === 200 && validData.found === true, `NIM ${nim} → found: true`);
+    assert(typeof validData.student?.name === "string", "Response berisi student.name");
+    assert(typeof validData.student?.nim === "string", "Response berisi student.nim");
+
+    if (validData.passed && validData.hasCertificate) {
+      assert(typeof validData.certificate?.certificateNumber === "string", "Response berisi certificateNumber");
+      assert(typeof validData.score?.totalScore === "number", "Response berisi score.totalScore");
+    }
+  } else {
+    log("ℹ️", "Tidak ada mahasiswa di DB, skip valid NIM test");
+  }
+}
+
 // ─── Cleanup ─────────────────────────────────────────────
 
 async function cleanup() {
@@ -529,6 +582,7 @@ async function run() {
     await testSchedules();
     await testAssessments();
     await testPayments();
+    await testCertificateCheck();
     await cleanup();
   } catch (err: any) {
     console.error("\n💥 FATAL ERROR:", err.message);

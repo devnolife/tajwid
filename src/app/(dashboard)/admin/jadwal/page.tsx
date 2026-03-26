@@ -9,13 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Plus, Trash2, Calendar, MapPin, Clock, Loader2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Clock, Loader2 } from "lucide-react";
+import { format } from "date-fns";
+import { id as localeId } from "date-fns/locale";
 import type { User, Schedule } from "@shared/schema";
 
 export default function JadwalManagement() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ studentId: "", instructorId: "", date: "", time: "", room: "", location: "" });
+  const [form, setForm] = useState({ studentId: "", instructorId: "", date: undefined as Date | undefined, time: "08:00", room: "", location: "" });
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: schedules, isLoading } = useQuery<Schedule[]>({ queryKey: ["/api/schedules"] });
@@ -24,7 +28,10 @@ export default function JadwalManagement() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const dateTime = new Date(`${form.date}T${form.time}`);
+      if (!form.date) throw new Error("Tanggal belum dipilih");
+      const [hours, minutes] = form.time.split(":").map(Number);
+      const dateTime = new Date(form.date);
+      dateTime.setHours(hours, minutes, 0, 0);
       await apiRequest("POST", "/api/schedules", {
         studentId: form.studentId,
         instructorId: form.instructorId,
@@ -37,7 +44,7 @@ export default function JadwalManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/schedules"] });
       toast({ title: "Berhasil", description: "Jadwal berhasil ditambahkan" });
       setShowForm(false);
-      setForm({ studentId: "", instructorId: "", date: "", time: "", room: "", location: "" });
+      setForm({ studentId: "", instructorId: "", date: undefined, time: "08:00", room: "", location: "" });
     },
     onError: () => toast({ title: "Gagal", description: "Terjadi kesalahan", variant: "destructive" }),
   });
@@ -143,11 +150,47 @@ export default function JadwalManagement() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs font-medium" style={{ color: "#666" }}>Tanggal</Label>
-                <Input data-testid="input-schedule-date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="mt-1 rounded-xl h-10" style={{ background: "#faf8f3", borderColor: "#e8e4db" }} />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      data-testid="input-schedule-date"
+                      variant="outline"
+                      className="mt-1 w-full justify-start text-left font-normal rounded-xl h-10"
+                      style={{ background: "#faf8f3", borderColor: "#e8e4db" }}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" style={{ color: "#888" }} />
+                      {form.date ? format(form.date, "dd MMMM yyyy", { locale: localeId }) : <span style={{ color: "#999" }}>Pilih tanggal</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={form.date}
+                      onSelect={(date) => setForm({ ...form, date: date || undefined })}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <Label className="text-xs font-medium" style={{ color: "#666" }}>Waktu</Label>
-                <Input data-testid="input-schedule-time" type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} className="mt-1 rounded-xl h-10" style={{ background: "#faf8f3", borderColor: "#e8e4db" }} />
+                <Select value={form.time} onValueChange={(v) => setForm({ ...form, time: v })}>
+                  <SelectTrigger data-testid="input-schedule-time" className="mt-1 rounded-xl h-10" style={{ background: "#faf8f3", borderColor: "#e8e4db" }}>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" style={{ color: "#888" }} />
+                      <SelectValue placeholder="Pilih waktu" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 28 }, (_, i) => {
+                      const h = Math.floor(i / 2) + 7;
+                      const m = (i % 2) * 30;
+                      if (h > 20) return null;
+                      const val = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+                      return <SelectItem key={val} value={val}>{val}</SelectItem>;
+                    })}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

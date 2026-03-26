@@ -6,7 +6,7 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
 
   // Public routes
-  if (pathname.startsWith("/verify") || pathname.startsWith("/api/certificates/verify")) {
+  if (pathname.startsWith("/verify") || pathname.startsWith("/api/certificates/verify") || pathname.startsWith("/api/certificates/check")) {
     return NextResponse.next();
   }
 

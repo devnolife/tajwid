@@ -103,13 +103,14 @@ export default function VerifyCertificate() {
             {/* Certificate Details */}
             <div className="rounded-2xl border overflow-hidden" style={{ background: "#fff", borderColor: "#e8e4db" }}>
               {/* Certificate Header with Logos */}
-              <div className="p-6 border-b flex items-center justify-center gap-6" style={{ borderColor: "#e8e4db", background: "#FFFDF7" }}>
-                <Image src="/logo/universitas.png" alt="Universitas" width={56} height={56} className="object-contain" />
+              <div className="p-6 border-b flex items-center justify-center gap-2" style={{ borderColor: "#e8e4db", background: "#FFFDF7" }}>
+                <Image src="/logo/universitas.png" alt="Universitas" width={72} height={72} className="object-contain" />
                 <div className="text-center">
                   <p className="text-xs font-medium tracking-widest uppercase" style={{ color: "#84B179" }}>Sertifikat Kelulusan</p>
                   <h3 className="font-serif font-bold text-lg mt-0.5" style={{ color: "#1A1A1A" }}>Ujian Kemampuan Tajwid Al-Quran</h3>
                 </div>
-                <Image src="/logo/teknik.png" alt="Fakultas" width={56} height={56} className="object-contain" />
+                <Image src="/logo/teknik.png" alt="Fakultas" width={80} height={80} className="object-contain" />
+                <Image src="/logo/logo.png" alt="Logo FT TajwidKu" width={90} height={100} className="object-contain" style={{ marginTop: 10, marginLeft: -10 }} />
               </div>
 
               {/* Details Grid */}

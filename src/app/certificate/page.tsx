@@ -31,8 +31,7 @@ export default function CertificatePage() {
 function CertificatePreview() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
-  const studentIdParam = searchParams.get("studentId");
-  const studentId = studentIdParam || user?.id;
+  const studentId = searchParams.get("studentId") || user?.id;
 
   const [data, setData] = useState<CertificateData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -112,13 +111,16 @@ function CertificatePreview() {
       {/* Print-specific styles */}
       <style jsx global>{`
         @media print {
-          body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          html, body { margin: 0; padding: 0; height: 100%; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important; }
           .print-page { 
             padding: 0 !important; 
             margin: 0 !important; 
-            min-height: auto !important; 
+            min-height: 100vh !important; 
+            height: 100% !important;
             background: white !important; 
+            display: flex !important;
+            flex-direction: column !important;
           }
           .cert-card { 
             margin: 0 !important; 
@@ -128,16 +130,35 @@ function CertificatePreview() {
             page-break-inside: avoid;
             width: 100% !important;
             max-width: 100% !important;
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
           }
           .cert-inner {
-            padding: 40px !important;
+            padding: 32px 40px !important;
+            margin: 10px !important;
             border-width: 3px !important;
+            border-radius: 12px !important;
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
           }
+          .cert-inner > svg { position: absolute; }
+          .cert-inner > .relative { flex: 1 !important; display: flex !important; flex-direction: column !important; }
+          /* Distribute spacing evenly */
+          .cert-inner .print-gap-sm { margin-top: 16px !important; margin-bottom: 16px !important; }
+          .cert-inner .print-gap-md { margin-top: 20px !important; margin-bottom: 20px !important; }
+          .cert-inner .print-gap-lg { margin-bottom: 24px !important; }
+          /* Force horizontal footer layout and push to bottom */
+          .cert-footer { flex-direction: row !important; gap: 16px !important; margin-top: auto !important; }
+          /* Scores grid */
+          .cert-scores { gap: 10px !important; margin-top: 16px !important; margin-bottom: 16px !important; }
+          .cert-scores > div { padding: 10px !important; }
         }
 
         @page {
-          size: A4 landscape;
-          margin: 15mm;
+          size: A4 portrait;
+          margin: 8mm;
         }
       `}</style>
 
@@ -177,17 +198,19 @@ function CertificatePreview() {
 
             <div className="relative z-10">
               {/* Logos */}
-              <div className="flex items-center justify-center gap-6 md:gap-10 mb-8">
+              <div className="flex items-center justify-center gap-2 md:gap-4 mb-8 print-gap-lg">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo/universitas.png" alt="Logo Universitas" className="w-16 h-16 md:w-20 md:h-20 object-contain" />
+                <img src="/logo/universitas.png" alt="Logo Universitas" className="object-contain" style={{ width: 72, height: 72 }} />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo/logo.png" alt="Logo TajwidKu" className="w-14 h-14 md:w-16 md:h-16 object-contain" />
+                <img src="/logo/teknik.png" alt="Logo Fakultas" className="object-contain" style={{ width: 80, height: 80 }} />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo/teknik.png" alt="Logo Fakultas" className="w-16 h-16 md:w-20 md:h-20 object-contain" />
+                <img src="/logo/logo.png" alt="Logo FT TajwidKu" className="object-contain" style={{
+                  width: 90, height: 100, marginTop: 10, marginLeft: -10
+                }} />
               </div>
 
               {/* Title */}
-              <div className="text-center mb-8">
+              <div className="text-center mb-8 print-gap-md">
                 <p className="text-xs md:text-sm font-medium tracking-[0.25em] uppercase" style={{ color: "#A2CB8B" }}>
                   Sertifikat Kelulusan
                 </p>
@@ -200,14 +223,14 @@ function CertificatePreview() {
               </div>
 
               {/* Separator */}
-              <div className="flex items-center gap-4 my-6">
+              <div className="flex items-center gap-4 my-6 print-gap-sm">
                 <div className="flex-1 h-px" style={{ background: "#d4cfbf" }} />
                 <Award className="w-6 h-6" style={{ color: "#A2CB8B" }} />
                 <div className="flex-1 h-px" style={{ background: "#d4cfbf" }} />
               </div>
 
               {/* Student Info */}
-              <div className="text-center my-8">
+              <div className="text-center my-8 print-gap-md">
                 <p className="text-sm md:text-base" style={{ color: "#888" }}>Diberikan kepada:</p>
                 <p className="text-3xl md:text-4xl font-serif font-bold mt-3" style={{ color: "#1A1A1A" }}>
                   {data.studentName}
@@ -220,7 +243,7 @@ function CertificatePreview() {
               </div>
 
               {/* Result */}
-              <div className="text-center my-8">
+              <div className="text-center my-8 print-gap-md">
                 <p className="text-sm md:text-base" style={{ color: "#666" }}>
                   Telah dinyatakan{" "}
                   <strong className="text-xl" style={{ color: "#059669" }}>LULUS</strong>{" "}
@@ -233,7 +256,7 @@ function CertificatePreview() {
               </div>
 
               {/* Score Details */}
-              <div className="grid grid-cols-4 gap-3 md:gap-4 my-8">
+              <div className="cert-scores grid grid-cols-4 gap-3 md:gap-4 my-8">
                 {[
                   { label: "Tajwid", value: assessment.tajwid },
                   { label: "Kelancaran", value: assessment.kelancaran },
@@ -248,10 +271,10 @@ function CertificatePreview() {
               </div>
 
               {/* Separator */}
-              <div className="h-px my-8" style={{ background: "#d4cfbf" }} />
+              <div className="h-px my-8 print-gap-sm" style={{ background: "#d4cfbf" }} />
 
-              {/* Footer: Academic Info + QR + Signature */}
-              <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+              {/* Footer: Academic Info + Signature with QR */}
+              <div className="cert-footer flex flex-col md:flex-row items-center justify-between gap-8">
                 {/* Academic Info */}
                 <div className="text-center md:text-left">
                   <p className="text-xs" style={{ color: "#999" }}>Tahun Akademik</p>
@@ -272,30 +295,24 @@ function CertificatePreview() {
                   )}
                 </div>
 
-                {/* QR Code */}
-                <div className="flex flex-col items-center gap-2">
-                  <div className="p-2.5 rounded-xl border" style={{ borderColor: "#e8e4db", background: "#fff" }}>
-                    <QRCodeSVG
-                      value={verifyUrl}
-                      size={110}
-                      bgColor="#FFFFFF"
-                      fgColor="#1A1A1A"
-                      level="M"
-                    />
-                  </div>
-                  <p className="text-[10px]" style={{ color: "#999" }}>Scan untuk verifikasi</p>
-                </div>
-
-                {/* Digital Signature */}
+                {/* Digital Signature with QR above name */}
                 <div className="text-center">
-                  <p className="text-xs" style={{ color: "#999" }}>Ditandatangani secara digital</p>
-                  <div className="mt-4 mb-2">
-                    <div className="w-36 h-px mx-auto" style={{ background: "#1A1A1A" }} />
+                  <p className="text-[10px] mb-2" style={{ color: "#999" }}>Ditandatangani secara digital</p>
+                  <div className="flex justify-center mb-2">
+                    <div className="p-1.5 rounded-lg border" style={{ borderColor: "#e8e4db", background: "#fff" }}>
+                      <QRCodeSVG
+                        value={verifyUrl}
+                        size={70}
+                        bgColor="#FFFFFF"
+                        fgColor="#1A1A1A"
+                        level="M"
+                      />
+                    </div>
                   </div>
-                  <p className="font-semibold text-sm" style={{ color: "#1A1A1A" }}>
+                  <p className="font-semibold text-xs" style={{ color: "#1A1A1A" }}>
                     {certificate.signerName}
                   </p>
-                  <p className="text-xs" style={{ color: "#666" }}>
+                  <p className="text-[10px]" style={{ color: "#666" }}>
                     {certificate.signerTitle}
                   </p>
                 </div>

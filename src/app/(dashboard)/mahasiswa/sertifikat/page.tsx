@@ -96,10 +96,10 @@ export default function Sertifikat() {
 
           <div className="relative z-10">
             {/* Logos Header */}
-            <div className="flex items-center justify-center gap-4 md:gap-8 mb-6">
-              <Image src="/logo/universitas.png" alt="Logo Universitas" width={64} height={64} className="object-contain" />
-              <Image src="/logo/logo.png" alt="Logo TajwidKu" width={56} height={56} className="object-contain" />
-              <Image src="/logo/teknik.png" alt="Logo Fakultas" width={64} height={64} className="object-contain" />
+            <div className="flex items-center justify-center gap-2 md:gap-4 mb-6">
+              <Image src="/logo/universitas.png" alt="Logo Universitas" width={72} height={72} className="object-contain" />
+              <Image src="/logo/teknik.png" alt="Logo Fakultas" width={80} height={80} className="object-contain" />
+              <Image src="/logo/logo.png" alt="Logo TajwidKu" width={90} height={100} className="object-contain" style={{ marginTop: 10, marginLeft: -10 }} />
             </div>
 
             {/* Title */}
@@ -218,7 +218,7 @@ export default function Sertifikat() {
               data-testid="button-download-certificate"
               className="rounded-xl h-11"
               style={{ background: "#84B179", color: "#fff" }}
-              onClick={() => window.open("/certificate", "_blank")}
+              onClick={() => window.open(`/certificate?studentId=${user?.id}`, "_blank")}
             >
               <Download className="w-4 h-4 mr-2" />
               Unduh Sertifikat (PDF)

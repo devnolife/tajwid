@@ -3,8 +3,12 @@ import { users, payments, schedules, assessments, settings, certificates } from 
 import { eq } from "drizzle-orm";
 
 export async function seedDatabase() {
+  console.log("→ Memulai seed database...");
   const existing = await db.select().from(users).limit(1);
-  if (existing.length > 0) return;
+  if (existing.length > 0) {
+    console.log("✓ Database sudah berisi data, seed dilewati.");
+    return;
+  }
 
   const studentData = [
     { username: "2024101001", password: "password123", role: "mahasiswa" as const, name: "Ahmad Fauzan Rizki", nim: "2024101001", faculty: "Fakultas Teknik", program: "Teknik Informatika", email: "ahmad.fauzan@univ.ac.id", phone: "081234567890" },
@@ -80,5 +84,21 @@ export async function seedDatabase() {
     paymentAmount: "25000",
   });
 
-  console.log("Database seeded successfully!");
+  console.log("✓ Database seeded successfully!");
+}
+
+// Auto-run when executed via `tsx src/lib/db/seed.ts`
+const isDirectRun =
+  typeof process !== "undefined" &&
+  Array.isArray(process.argv) &&
+  process.argv[1] &&
+  /seed\.(ts|js)$/.test(process.argv[1]);
+
+if (isDirectRun) {
+  seedDatabase()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("✗ Seed gagal:", err);
+      process.exit(1);
+    });
 }

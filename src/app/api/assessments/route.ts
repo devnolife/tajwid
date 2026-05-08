@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { storage } from "@/lib/db/storage";
+import { notify, notifyTemplates } from "@/lib/notify";
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -42,8 +43,12 @@ export async function POST(request: Request) {
       body.assessedAt = new Date(body.assessedAt);
     }
     const assessment = await storage.createAssessment(body);
+    if (assessment.studentId) {
+      await notify(notifyTemplates.assessmentPublished(assessment.studentId, assessment.totalScore, assessment.passed));
+    }
     return NextResponse.json(assessment);
   } catch (e: any) {
     return NextResponse.json({ message: e.message }, { status: 400 });
   }
 }
+

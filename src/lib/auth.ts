@@ -107,6 +107,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               userId = user.id;
               userName = user.name;
               userEmail = user.email;
+
+              // Auto-create tagihan default untuk mahasiswa baru
+              try {
+                const settings = await storage.getSettings();
+                const amount = settings?.paymentAmount ?? "25000";
+                const academicYear = settings?.academicYear ?? "2025/2026";
+                const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                await storage.createPayment({
+                  studentId: user.id,
+                  amount,
+                  dueDate,
+                  description: `Biaya Ujian Tajwid Tahun Akademik ${academicYear}`,
+                  status: "belum_bayar",
+                });
+              } catch (e) {
+                console.warn("[auth] Gagal auto-create tagihan untuk mahasiswa baru:", e);
+              }
             } catch {
               // DB tidak tersedia — tetap return user dari GraphQL
             }
@@ -221,5 +238,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   session: {
     strategy: "jwt",
   },
-  secret: process.env.NEXTAUTH_SECRET || "tajwidku-secret-key",
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
 });
+
+if (!process.env.AUTH_SECRET && !process.env.NEXTAUTH_SECRET) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "AUTH_SECRET (atau NEXTAUTH_SECRET) wajib di-set di production. Lihat https://authjs.dev/reference/core/errors#missingsecret",
+    );
+  } else {
+    console.warn(
+      "[auth] AUTH_SECRET / NEXTAUTH_SECRET belum di-set. Generate dengan: npx auth secret",
+    );
+  }
+}

@@ -1,34 +1,93 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-client";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/status-badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Upload, Clock, CheckCircle, Wallet, CalendarDays, FileText, Loader2 } from "lucide-react";
+import { CreditCard, Upload, Clock, CheckCircle, Wallet, CalendarDays, FileText, Loader2, ImageIcon, X } from "lucide-react";
 import type { Payment } from "@shared/schema";
 
 export default function Pembayaran() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const ensuredRef = useRef(false);
 
   const { data: payments, isLoading } = useQuery<Payment[]>({
     queryKey: ["/api/payments", `?studentId=${user?.id}`],
   });
 
+  // Auto-buat tagihan default kalau mahasiswa belum punya tagihan apapun
+  useEffect(() => {
+    if (isLoading) return;
+    if (!user || (user as any).role !== "mahasiswa") return;
+    if (payments && payments.length > 0) return;
+    if (ensuredRef.current) return;
+    ensuredRef.current = true;
+    fetch("/api/payments/ensure-mine", { method: "POST" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.created) {
+          queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
+        }
+      })
+      .catch(() => {
+        // diam saja — empty state tetap muncul kalau gagal
+      });
+  }, [isLoading, payments, user]);
+
   const uploadMutation = useMutation({
     mutationFn: async (paymentId: string) => {
+      if (!selectedFile) throw new Error("Pilih file bukti pembayaran terlebih dahulu");
+      const fd = new FormData();
+      fd.append("file", selectedFile);
+      fd.append("folder", "payments");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Upload gagal");
       await apiRequest("PATCH", `/api/payments/${paymentId}`, {
         status: "menunggu_verifikasi",
-        proofUrl: "/uploads/bukti_bayar.jpg",
+        proofUrl: data.url,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
       toast({ title: "Berhasil", description: "Bukti pembayaran berhasil diunggah" });
+      setSelectedFile(null);
+      setPreview(null);
+    },
+    onError: (err: any) => {
+      toast({ title: "Gagal", description: err.message, variant: "destructive" });
     },
   });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "File terlalu besar", description: "Maksimal 5MB", variant: "destructive" });
+      return;
+    }
+    setSelectedFile(file);
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onloadend = () => setPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setPreview(null);
+    }
+  };
+
+  const clearFile = () => {
+    setSelectedFile(null);
+    setPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const payment = payments?.[0];
 
@@ -109,29 +168,83 @@ export default function Pembayaran() {
             </div>
           </div>
 
-          {/* Action Buttons */}
-          {payment.status === "belum_bayar" && (
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                data-testid="button-bayar"
-                className="rounded-xl h-11 w-full sm:w-auto"
-                style={{ background: "#84B179", color: "#fff" }}
-                onClick={() => toast({ title: "Info", description: "Integrasi payment gateway akan segera tersedia" })}
-              >
-                <CreditCard className="w-4 h-4 mr-2" />
-                Bayar Sekarang
-              </Button>
-              <Button
-                data-testid="button-upload-bukti"
-                variant="outline"
-                className="rounded-xl h-11 w-full sm:w-auto"
-                onClick={() => uploadMutation.mutate(payment.id)}
-                disabled={uploadMutation.isPending}
-              >
-                {uploadMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-                {uploadMutation.isPending ? "Mengunggah..." : "Upload Bukti Pembayaran"}
-              </Button>
+          {/* Action Buttons + Upload */}
+          {(payment.status === "belum_bayar" || payment.status === "ditolak") && (
+            <div className="space-y-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+
+              {!selectedFile ? (
+                <div className="rounded-xl border-2 border-dashed p-6 text-center" style={{ borderColor: "#e8e4db", background: "#faf8f3" }}>
+                  <ImageIcon className="w-8 h-8 mx-auto mb-2" style={{ color: "#84B179" }} />
+                  <p className="text-sm mb-3" style={{ color: "#666" }}>
+                    Upload bukti transfer/pembayaran (JPG, PNG, WebP, atau PDF — maks 5MB)
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-2" /> Pilih File
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-xl border p-4" style={{ borderColor: "#84B179", background: "#F0FDF4" }}>
+                  <div className="flex items-start gap-3">
+                    {preview ? (
+                      <img src={preview} alt="preview" className="w-20 h-20 rounded-lg object-cover" />
+                    ) : (
+                      <div className="w-20 h-20 rounded-lg flex items-center justify-center" style={{ background: "#fff" }}>
+                        <FileText className="w-8 h-8" style={{ color: "#84B179" }} />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: "#1A1A1A" }}>{selectedFile.name}</p>
+                      <p className="text-xs mt-1" style={{ color: "#666" }}>
+                        {(selectedFile.size / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                    <button onClick={clearFile} className="p-1 rounded-lg hover:bg-white/60 transition-colors">
+                      <X className="w-4 h-4" style={{ color: "#666" }} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  data-testid="button-bayar"
+                  variant="outline"
+                  className="rounded-xl h-11 w-full sm:w-auto"
+                  onClick={() => toast({ title: "Info", description: "Integrasi payment gateway akan segera tersedia" })}
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Bayar via Gateway
+                </Button>
+                <Button
+                  data-testid="button-upload-bukti"
+                  className="rounded-xl h-11 w-full sm:flex-1"
+                  style={{ background: "#84B179", color: "#fff" }}
+                  onClick={() => uploadMutation.mutate(payment.id)}
+                  disabled={uploadMutation.isPending || !selectedFile}
+                >
+                  {uploadMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                  {uploadMutation.isPending ? "Mengunggah..." : "Kirim Bukti Pembayaran"}
+                </Button>
+              </div>
             </div>
+          )}
+
+          {payment.status === "lunas" && payment.proofUrl && (
+            <a href={payment.proofUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-medium hover:underline" style={{ color: "#84B179" }}>
+              <FileText className="w-4 h-4" /> Lihat bukti yang dikirim
+            </a>
           )}
           {payment.status === "menunggu_verifikasi" && (
             <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: "#FEF3C7" }}>

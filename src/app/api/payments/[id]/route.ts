@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { storage } from "@/lib/db/storage";
+import { notify, notifyTemplates } from "@/lib/notify";
 
 export async function PATCH(
   request: Request,
@@ -21,10 +22,27 @@ export async function PATCH(
     if (body.paidAt && typeof body.paidAt === "string") {
       body.paidAt = new Date(body.paidAt);
     }
+
+    const before = await storage.getPayment(id);
     const payment = await storage.updatePayment(id, body);
     if (!payment) {
       return NextResponse.json({ message: "Not found" }, { status: 404 });
     }
+
+    // Notifikasi: mahasiswa upload bukti → notif ke semua admin
+    if (before?.status !== "menunggu_verifikasi" && payment.status === "menunggu_verifikasi") {
+      const student = await storage.getUser(payment.studentId);
+      const admins = await storage.getUsersByRole("admin");
+      for (const admin of admins) {
+        await notify(notifyTemplates.paymentNeedsVerification(admin.id, student?.name || "Mahasiswa"));
+      }
+    }
+
+    // Notifikasi: admin verifikasi → notif ke mahasiswa
+    if (before && before.status !== payment.status && (payment.status === "lunas" || payment.status === "ditolak")) {
+      await notify(notifyTemplates.paymentVerified(payment.studentId, payment.status));
+    }
+
     return NextResponse.json(payment);
   } catch (e: any) {
     return NextResponse.json({ message: e.message }, { status: 400 });

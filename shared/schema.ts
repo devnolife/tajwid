@@ -6,6 +6,7 @@ import { z } from "zod";
 export const roleEnum = pgEnum("role", ["mahasiswa", "instruktur", "admin"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["belum_bayar", "menunggu_verifikasi", "lunas", "ditolak"]);
 export const testStatusEnum = pgEnum("test_status", ["belum_tes", "sudah_tes", "lulus", "tidak_lulus"]);
+export const notificationTypeEnum = pgEnum("notification_type", ["info", "payment", "schedule", "result", "certificate", "system"]);
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -79,12 +80,24 @@ export const settings = pgTable("settings", {
   paymentAmount: decimal("payment_amount", { precision: 12, scale: 2 }).notNull().default("25000"),
 });
 
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: notificationTypeEnum("type").notNull().default("info"),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  link: text("link"),
+  read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true });
 export const insertScheduleSchema = createInsertSchema(schedules).omit({ id: true });
 export const insertAssessmentSchema = createInsertSchema(assessments).omit({ id: true });
 export const insertCertificateSchema = createInsertSchema(certificates).omit({ id: true });
 export const insertSettingsSchema = createInsertSchema(settings).omit({ id: true });
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 
 export const loginSchema = z.object({
   username: z.string().min(1, "Username wajib diisi"),
@@ -104,4 +117,6 @@ export type InsertCertificate = z.infer<typeof insertCertificateSchema>;
 export type Certificate = typeof certificates.$inferSelect;
 export type InsertSettings = z.infer<typeof insertSettingsSchema>;
 export type Settings = typeof settings.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
 export type LoginData = z.infer<typeof loginSchema>;

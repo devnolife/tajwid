@@ -2,51 +2,75 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===========================================================
+   "Sajadah Subuh" — Dawn Prayer Light
+   Warm parchment cream · deep emerald · antique gold · sage mist
+   =========================================================== */
+
+/* Tonal anchors — tweak here to retune the whole palette */
+:root {
+  --c-parchment:        42 38% 96%;   /* #f7f1e6 */
+  --c-parchment-warm:   40 32% 92%;   /* layered cream */
+  --c-cream:            44 45% 98%;   /* highest light */
+  --c-emerald-deep:     168 45% 20%;  /* primary ink-emerald */
+  --c-emerald:          168 38% 28%;
+  --c-emerald-soft:     162 22% 46%;
+  --c-sage:             148 18% 72%;  /* mist sage */
+  --c-sage-deep:        152 22% 38%;
+  --c-gold:             38 55% 56%;   /* antique gold */
+  --c-gold-soft:        40 60% 78%;
+  --c-ink:              190 28% 12%;  /* deep night-emerald */
+  --c-taupe:            38 18% 78%;
+  --c-taupe-soft:       40 22% 88%;
+}
+
 /* LIGHT MODE */
 :root {
-  --button-outline: rgba(0,0,0, .10);
-  --badge-outline: rgba(0,0,0, .05);
-  --opaque-button-border-intensity: -8;
-  --elevate-1: rgba(0,0,0, .03);
-  --elevate-2: rgba(0,0,0, .08);
-  --background: 40 35% 97%;
-  --foreground: 180 30% 12%;
-  --border: 40 20% 88%;
-  --card: 40 30% 95%;
-  --card-foreground: 180 28% 14%;
-  --card-border: 40 22% 90%;
-  --sidebar: 40 25% 92%;
-  --sidebar-foreground: 180 26% 16%;
-  --sidebar-border: 40 20% 86%;
-  --sidebar-primary: 180 65% 28%;
-  --sidebar-primary-foreground: 40 45% 96%;
-  --sidebar-accent: 40 20% 85%;
-  --sidebar-accent-foreground: 180 32% 18%;
-  --sidebar-ring: 180 60% 30%;
-  --popover: 40 28% 93%;
-  --popover-foreground: 180 28% 15%;
-  --popover-border: 40 22% 88%;
-  --primary: 180 65% 28%;
-  --primary-foreground: 40 45% 96%;
-  --secondary: 40 18% 84%;
-  --secondary-foreground: 180 30% 18%;
-  --muted: 40 16% 86%;
-  --muted-foreground: 180 22% 32%;
-  --accent: 42 55% 88%;
-  --accent-foreground: 180 32% 20%;
-  --destructive: 0 72% 38%;
-  --destructive-foreground: 0 85% 97%;
-  --input: 180 32% 65%;
-  --ring: 180 60% 32%;
-  --chart-1: 180 65% 32%;
-  --chart-2: 42 78% 42%;
-  --chart-3: 160 55% 35%;
-  --chart-4: 200 60% 38%;
-  --chart-5: 28 70% 45%;
-  --font-sans: 'DM Sans', 'Nunito', sans-serif;
-  --font-serif: 'Amiri', Georgia, serif;
+  --button-outline: rgba(30, 60, 55, .12);
+  --badge-outline: rgba(30, 60, 55, .06);
+  --opaque-button-border-intensity: -10;
+  --elevate-1: rgba(30, 60, 55, .035);
+  --elevate-2: rgba(30, 60, 55, .07);
+
+  --background: var(--c-parchment);
+  --foreground: var(--c-ink);
+  --border: var(--c-taupe-soft);
+  --card: var(--c-cream);
+  --card-foreground: var(--c-ink);
+  --card-border: var(--c-taupe-soft);
+  --sidebar: var(--c-emerald-deep);
+  --sidebar-foreground: 44 45% 96%;
+  --sidebar-border: 168 30% 18%;
+  --sidebar-primary: var(--c-gold);
+  --sidebar-primary-foreground: 168 45% 14%;
+  --sidebar-accent: 168 30% 16%;
+  --sidebar-accent-foreground: 44 45% 96%;
+  --sidebar-ring: var(--c-gold);
+  --popover: var(--c-cream);
+  --popover-foreground: var(--c-ink);
+  --popover-border: var(--c-taupe-soft);
+  --primary: var(--c-emerald-deep);
+  --primary-foreground: 44 45% 98%;
+  --secondary: var(--c-parchment-warm);
+  --secondary-foreground: var(--c-emerald-deep);
+  --muted: 40 22% 90%;
+  --muted-foreground: 168 18% 32%;
+  --accent: var(--c-gold-soft);
+  --accent-foreground: var(--c-emerald-deep);
+  --destructive: 0 58% 42%;
+  --destructive-foreground: 0 0% 99%;
+  --input: 168 18% 60%;
+  --ring: var(--c-gold);
+  --chart-1: var(--c-emerald-deep);
+  --chart-2: var(--c-gold);
+  --chart-3: var(--c-sage-deep);
+  --chart-4: 200 35% 38%;
+  --chart-5: 28 55% 50%;
+  --font-sans: var(--font-sans), 'Manrope', system-ui, sans-serif;
+  --font-display: var(--font-display), 'Cormorant Garamond', Georgia, serif;
+  --font-serif: var(--font-serif), 'Amiri', Georgia, serif;
   --font-mono: Menlo, monospace;
-  --radius: .5rem;
+  --radius: .75rem;
   --shadow-2xs: 0px 2px 0px 0px hsl(180 65% 28% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(180 65% 28% / 0.00);
   --shadow-sm: 0px 2px 0px 0px hsl(180 65% 28% / 0.00), 0px 1px 2px -1px hsl(180 65% 28% / 0.00);
@@ -68,45 +92,45 @@
 }
 
 .dark {
-  --button-outline: rgba(255,255,255, .10);
-  --badge-outline: rgba(255,255,255, .05);
+  --button-outline: rgba(230, 220, 195, .10);
+  --badge-outline: rgba(230, 220, 195, .05);
   --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(255,255,255, .04);
-  --elevate-2: rgba(255,255,255, .09);
-  --background: 180 32% 8%;
-  --foreground: 40 35% 94%;
-  --border: 180 18% 16%;
-  --card: 180 28% 10%;
-  --card-foreground: 40 32% 92%;
-  --card-border: 180 22% 13%;
-  --sidebar: 180 26% 12%;
-  --sidebar-foreground: 40 30% 90%;
-  --sidebar-border: 180 20% 15%;
-  --sidebar-primary: 180 65% 32%;
-  --sidebar-primary-foreground: 40 45% 96%;
-  --sidebar-accent: 180 22% 16%;
-  --sidebar-accent-foreground: 40 35% 88%;
-  --sidebar-ring: 180 60% 35%;
-  --popover: 180 24% 14%;
-  --popover-foreground: 40 32% 90%;
-  --popover-border: 180 20% 17%;
-  --primary: 180 65% 32%;
-  --primary-foreground: 40 45% 96%;
-  --secondary: 180 18% 18%;
-  --secondary-foreground: 40 30% 88%;
-  --muted: 180 16% 20%;
-  --muted-foreground: 40 20% 68%;
-  --accent: 42 32% 22%;
-  --accent-foreground: 42 45% 88%;
-  --destructive: 0 72% 32%;
-  --destructive-foreground: 0 85% 97%;
-  --input: 180 28% 35%;
-  --ring: 180 60% 38%;
-  --chart-1: 180 65% 65%;
-  --chart-2: 42 85% 72%;
-  --chart-3: 160 60% 68%;
-  --chart-4: 200 65% 70%;
-  --chart-5: 28 75% 75%;
+  --elevate-1: rgba(230, 220, 195, .04);
+  --elevate-2: rgba(230, 220, 195, .09);
+  --background: 175 28% 7%;
+  --foreground: 42 32% 92%;
+  --border: 168 18% 16%;
+  --card: 172 24% 10%;
+  --card-foreground: 42 32% 92%;
+  --card-border: 168 22% 14%;
+  --sidebar: 172 26% 9%;
+  --sidebar-foreground: 42 30% 88%;
+  --sidebar-border: 168 22% 14%;
+  --sidebar-primary: 38 55% 60%;
+  --sidebar-primary-foreground: 168 45% 12%;
+  --sidebar-accent: 168 22% 14%;
+  --sidebar-accent-foreground: 42 32% 88%;
+  --sidebar-ring: 38 55% 60%;
+  --popover: 172 24% 11%;
+  --popover-foreground: 42 32% 90%;
+  --popover-border: 168 22% 16%;
+  --primary: 38 55% 60%;
+  --primary-foreground: 168 45% 12%;
+  --secondary: 168 18% 16%;
+  --secondary-foreground: 42 30% 88%;
+  --muted: 168 16% 18%;
+  --muted-foreground: 42 18% 65%;
+  --accent: 38 38% 28%;
+  --accent-foreground: 42 50% 88%;
+  --destructive: 0 58% 42%;
+  --destructive-foreground: 0 0% 99%;
+  --input: 168 22% 32%;
+  --ring: 38 55% 55%;
+  --chart-1: 38 55% 65%;
+  --chart-2: 168 38% 55%;
+  --chart-3: 152 28% 55%;
+  --chart-4: 200 45% 60%;
+  --chart-5: 28 55% 65%;
   --shadow-2xs: 0px 2px 0px 0px hsl(180 65% 32% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(180 65% 32% / 0.00);
   --shadow-sm: 0px 2px 0px 0px hsl(180 65% 32% / 0.00), 0px 1px 2px -1px hsl(180 65% 32% / 0.00);
@@ -132,6 +156,26 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11";
+    background-image:
+      radial-gradient(ellipse 1200px 600px at 10% -10%, hsl(var(--c-gold-soft) / 0.18), transparent 60%),
+      radial-gradient(ellipse 900px 500px at 100% 100%, hsl(var(--c-sage) / 0.22), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: hsl(var(--c-gold) / 0.35);
+    color: hsl(var(--c-emerald-deep));
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+    font-feature-settings: "liga", "dlig", "swsh";
+    letter-spacing: -0.01em;
+  }
+
+  .font-arabic {
+    font-family: var(--font-serif);
   }
 }
 
@@ -153,4 +197,78 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Decorative arabesque divider — pure CSS */
+  .ornament-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: hsl(var(--c-gold));
+  }
+  .ornament-divider::before,
+  .ornament-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--c-gold) / 0.4),
+      transparent
+    );
+  }
+
+  /* Tiled geometric background — eight-pointed star (rub el hizb) */
+  .pattern-arabesque {
+    background-color: transparent;
+    background-image:
+      radial-gradient(circle at 50% 50%, hsl(var(--c-emerald-deep) / 0.05) 1px, transparent 1.5px),
+      conic-gradient(
+        from 22.5deg at 50% 50%,
+        hsl(var(--c-emerald-deep) / 0.04) 0 25%,
+        transparent 25% 50%,
+        hsl(var(--c-emerald-deep) / 0.04) 50% 75%,
+        transparent 75% 100%
+      );
+    background-size: 28px 28px, 56px 56px;
+    background-position: 0 0, 0 0;
+  }
+
+  /* Soft paper grain */
+  .paper-grain {
+    position: relative;
+  }
+  .paper-grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.45  0 0 0 0 0.40  0 0 0 0 0.30  0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  /* Glow ring used for active/focus moments */
+  .glow-gold {
+    box-shadow:
+      0 0 0 1px hsl(var(--c-gold) / 0.45),
+      0 8px 30px -10px hsl(var(--c-gold) / 0.5);
+  }
+
+  /* Gentle motion — quiet entrance */
+  @keyframes ascend-fade {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes shimmer-veil {
+    0%, 100% { opacity: 0.55; transform: translateX(-2%); }
+    50%      { opacity: 0.85; transform: translateX(2%); }
+  }
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0) rotate(0); }
+    50%      { transform: translateY(-6px) rotate(0.5deg); }
+  }
+  .animate-ascend  { animation: ascend-fade 0.8s ease-out both; }
+  .animate-shimmer { animation: shimmer-veil 6s ease-in-out infinite; }
+  .animate-float-slow { animation: float-slow 7s ease-in-out infinite; }
 }

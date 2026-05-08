@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { storage } from "@/lib/db/storage";
+import { notify, notifyTemplates } from "@/lib/notify";
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -38,6 +39,9 @@ export async function POST(request: Request) {
       body.paidAt = new Date(body.paidAt);
     }
     const payment = await storage.createPayment(body);
+    if (payment.studentId) {
+      await notify(notifyTemplates.paymentCreated(payment.studentId, payment.amount, payment.id));
+    }
     return NextResponse.json(payment);
   } catch (e: any) {
     return NextResponse.json({ message: e.message }, { status: 400 });

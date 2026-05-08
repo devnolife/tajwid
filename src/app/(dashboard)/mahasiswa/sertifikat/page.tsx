@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Award, Download, Lock, Loader2 } from "lucide-react";
@@ -13,6 +14,8 @@ export default function Sertifikat() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const certRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const { data: assessments, isLoading: loadingAssessment } = useQuery<Assessment[]>({
     queryKey: ["/api/assessments", `?studentId=${user?.id}`],
@@ -45,6 +48,44 @@ export default function Sertifikat() {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
+
+  const downloadPdf = async () => {
+    if (!certRef.current) return;
+    setDownloading(true);
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+      const canvas = await html2canvas(certRef.current, {
+        scale: 2,
+        backgroundColor: "#FFFDF7",
+        useCORS: true,
+        logging: false,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const ratio = canvas.width / canvas.height;
+      let imgW = pageWidth - 20;
+      let imgH = imgW / ratio;
+      if (imgH > pageHeight - 20) {
+        imgH = pageHeight - 20;
+        imgW = imgH * ratio;
+      }
+      const x = (pageWidth - imgW) / 2;
+      const y = (pageHeight - imgH) / 2;
+      pdf.addImage(imgData, "PNG", x, y, imgW, imgH);
+      const filename = `Sertifikat-${certificate?.certificateNumber || user?.nim || "tajwid"}.pdf`;
+      pdf.save(filename);
+      toast({ title: "Berhasil", description: "Sertifikat berhasil diunduh sebagai PDF" });
+    } catch (e: any) {
+      toast({ title: "Gagal", description: e.message || "Tidak dapat membuat PDF", variant: "destructive" });
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const assessment = assessments?.[0];
   const passed = assessment?.passed;
@@ -83,7 +124,7 @@ export default function Sertifikat() {
         </div>
 
         {/* Certificate Card */}
-        <div className="mx-6 mb-6 rounded-2xl border-2 p-8 md:p-12 relative overflow-hidden" style={{ borderColor: "#A2CB8B", background: "#FFFDF7" }}>
+        <div ref={certRef} className="mx-6 mb-6 rounded-2xl border-2 p-8 md:p-12 relative overflow-hidden" style={{ borderColor: "#A2CB8B", background: "#FFFDF7" }}>
           {/* Background Pattern */}
           <svg className="absolute inset-0 w-full h-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -218,10 +259,11 @@ export default function Sertifikat() {
               data-testid="button-download-certificate"
               className="rounded-xl h-11"
               style={{ background: "#84B179", color: "#fff" }}
-              onClick={() => window.open(`/certificate?studentId=${user?.id}`, "_blank")}
+              onClick={downloadPdf}
+              disabled={downloading}
             >
-              <Download className="w-4 h-4 mr-2" />
-              Unduh Sertifikat (PDF)
+              {downloading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+              {downloading ? "Membuat PDF..." : "Unduh Sertifikat (PDF)"}
             </Button>
           )}
         </div>

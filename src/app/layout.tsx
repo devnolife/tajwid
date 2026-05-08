@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
-import { DM_Sans, Amiri } from "next/font/google";
+import { Manrope, Cormorant_Garamond, Amiri } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
 
-const dmSans = DM_Sans({
+const manrope = Manrope({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
+});
+
+const cormorant = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -34,7 +42,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" suppressHydrationWarning>
-      <body className={`${dmSans.variable} ${amiri.variable} font-sans antialiased`} suppressHydrationWarning>
+      <body className={`${manrope.variable} ${cormorant.variable} ${amiri.variable} font-sans antialiased`} suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

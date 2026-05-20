@@ -6,7 +6,8 @@ const statusConfig: Record<string, { label: string; bg: string; text: string }> 
   belum_tes: { label: "Belum Tes", bg: "#E0E7FF", text: "#4F46E5" },
   sudah_tes: { label: "Sudah Tes", bg: "#FEF3C7", text: "#D97706" },
   lulus: { label: "Lulus", bg: "#D1FAE5", text: "#059669" },
-  tidak_lulus: { label: "Tidak Lulus", bg: "#FEE2E2", text: "#DC2626" },
+  tidak_lulus: { label: "Perlu Mengulang", bg: "#FEF3C7", text: "#D97706" },
+  perlu_mengulang: { label: "Perlu Mengulang", bg: "#FEF3C7", text: "#D97706" },
 };
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {

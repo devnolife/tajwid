@@ -85,7 +85,7 @@ export default function MahasiswaManagement() {
 
   const getStatus = (id: string) => {
     const a = allAssessments?.find(a => a.studentId === id);
-    if (a) return a.passed ? "lulus" : "tidak_lulus";
+    if (a) return a.passed ? "lulus" : "perlu_mengulang";
     return "belum_tes";
   };
 
@@ -125,7 +125,7 @@ export default function MahasiswaManagement() {
         Telepon: s.phone || "",
         Fakultas: s.faculty || "",
         "Program Studi": s.program || "",
-        "Status Tes": a ? (a.passed ? "Lulus" : "Tidak Lulus") : "Belum Tes",
+        "Status Tes": a ? (a.passed ? "Lulus" : "Perlu Mengulang") : "Belum Tes",
         "Total Skor": a?.totalScore ?? "",
         Tajwid: a?.tajwid ?? "",
         Kelancaran: a?.kelancaran ?? "",
@@ -228,7 +228,7 @@ export default function MahasiswaManagement() {
             <SelectContent>
               <SelectItem value="semua">Semua Status</SelectItem>
               <SelectItem value="lulus">Lulus</SelectItem>
-              <SelectItem value="tidak_lulus">Tidak Lulus</SelectItem>
+              <SelectItem value="perlu_mengulang">Perlu Mengulang</SelectItem>
               <SelectItem value="belum_tes">Belum Tes</SelectItem>
             </SelectContent>
           </Select>

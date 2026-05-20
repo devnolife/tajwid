@@ -32,13 +32,14 @@ export default function MahasiswaDashboard() {
   const hasSchedule = !!schedule;
   const hasResult = !!assessment;
   const passed = assessment?.passed;
+  const needsRepeat = hasResult && !passed;
 
   const steps = [
-    { label: "Pembayaran", done: paymentStatus === "lunas", active: paymentStatus !== "lunas" },
-    { label: "Menunggu Jadwal", done: hasSchedule, active: paymentStatus === "lunas" && !hasSchedule },
-    { label: "Tes Tajwid", done: hasResult, active: hasSchedule && !hasResult },
-    { label: "Penilaian", done: hasResult, active: false },
-    { label: "Sertifikat", done: !!passed, active: hasResult && !passed },
+    { label: "Penjadwalan", done: hasSchedule, active: !hasSchedule },
+    { label: "Sesi Mengaji", done: hasResult, active: hasSchedule && !hasResult },
+    { label: "Dinyatakan Lulus", done: !!passed, active: needsRepeat },
+    { label: "Pembayaran", done: paymentStatus === "lunas", active: !!passed && paymentStatus !== "lunas" },
+    { label: "Sertifikat", done: paymentStatus === "lunas" && !!passed, active: false },
   ];
 
   const statusLabels: Record<string, string> = {
@@ -68,22 +69,26 @@ export default function MahasiswaDashboard() {
 
   // Determine the next actionable step
   const nextAction = (() => {
-    if (paymentStatus === "belum_bayar") {
-      return { label: "Lakukan Pembayaran", desc: "Selesaikan biaya ujian tajwid sebagai langkah pertama.", href: "/mahasiswa/pembayaran", icon: CreditCard };
-    }
-    if (paymentStatus === "menunggu_verifikasi") {
-      return { label: "Tunggu Verifikasi", desc: "Bukti pembayaran Anda sedang diverifikasi admin.", href: "/mahasiswa/pembayaran", icon: Clock };
-    }
     if (!hasSchedule) {
-      return { label: "Menunggu Jadwal", desc: "Admin akan menjadwalkan tes tajwid Anda dalam waktu dekat.", href: "/mahasiswa/jadwal", icon: Calendar };
+      return { label: "Menunggu Jadwal", desc: "Admin akan menjadwalkan sesi mengaji Anda dalam waktu dekat.", href: "/mahasiswa/jadwal", icon: Calendar };
     }
     if (!hasResult) {
-      return { label: "Hadiri Tes Tajwid", desc: "Datanglah tepat waktu sesuai jadwal yang telah ditentukan.", href: "/mahasiswa/jadwal", icon: FileText };
+      return { label: "Hadiri Sesi Mengaji", desc: "Datanglah tepat waktu sesuai jadwal yang telah ditentukan.", href: "/mahasiswa/jadwal", icon: FileText };
     }
-    if (passed) {
-      return { label: "Unduh Sertifikat", desc: "Selamat! Sertifikat tartil Anda sudah dapat diunduh.", href: "/mahasiswa/sertifikat", icon: Award };
+    if (needsRepeat) {
+      return { label: "Perlu Mengulang", desc: "Belum lulus pada sesi terakhir. Lihat catatan instruktur dan ikuti jadwal sesi berikutnya.", href: "/mahasiswa/hasil", icon: FileText };
     }
-    return { label: "Lihat Hasil Tes", desc: "Pelajari catatan dari instruktur dan ikuti tes ulang.", href: "/mahasiswa/hasil", icon: FileText };
+    // Sudah lulus — alur pembayaran
+    if (paymentStatus === "belum_bayar") {
+      return { label: "Selesaikan Pembayaran", desc: "Selamat, Anda LULUS. Bayar biaya sertifikat untuk menerbitkan sertifikat Anda.", href: "/mahasiswa/pembayaran", icon: CreditCard };
+    }
+    if (paymentStatus === "menunggu_verifikasi") {
+      return { label: "Menunggu Verifikasi", desc: "Bukti pembayaran Anda sedang diverifikasi admin.", href: "/mahasiswa/pembayaran", icon: Clock };
+    }
+    if (paymentStatus === "lunas") {
+      return { label: "Unduh Sertifikat", desc: "Sertifikat tartil Anda sudah dapat diunduh.", href: "/mahasiswa/sertifikat", icon: Award };
+    }
+    return { label: "Lihat Hasil", desc: "Pelajari catatan dari instruktur.", href: "/mahasiswa/hasil", icon: FileText };
   })();
   const NextIcon = nextAction.icon;
 
@@ -164,13 +169,14 @@ export default function MahasiswaDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <ScoreCard
           title="Status Pembayaran"
-          value={statusLabels[paymentStatus] || paymentStatus}
+          value={passed ? (statusLabels[paymentStatus] || paymentStatus) : "Belum Diperlukan"}
+          subtitle={passed ? undefined : "Muncul setelah Anda LULUS"}
           icon={<CreditCard className="w-5 h-5" />}
           color={paymentStatus === "lunas" ? "hsl(152 38% 32%)" : "hsl(28 75% 42%)"}
           accent={paymentStatus === "lunas" ? "hsl(152 38% 42%)" : "hsl(38 55% 56%)"}
         />
         <ScoreCard
-          title="Jadwal Tes"
+          title="Jadwal Sesi"
           value={hasSchedule ? "Terjadwal" : "Belum Ada"}
           subtitle={schedule ? new Date(schedule.date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "Menunggu penjadwalan"}
           icon={<Calendar className="w-5 h-5" />}
@@ -178,19 +184,25 @@ export default function MahasiswaDashboard() {
           accent="hsl(168 45% 35%)"
         />
         <ScoreCard
-          title="Hasil Tes"
-          value={hasResult ? `${assessment.totalScore}/100` : "Belum Tes"}
-          subtitle={hasResult ? (passed ? "Lulus dengan baik" : "Belum lulus") : "Menanti penilaian"}
+          title="Hasil Penilaian"
+          value={hasResult ? `${assessment.totalScore}/100` : "Belum Dinilai"}
+          subtitle={hasResult ? (passed ? "Lulus dengan baik" : "Perlu mengulang") : "Menanti penilaian"}
           icon={<FileText className="w-5 h-5" />}
-          color={hasResult ? (passed ? "hsl(152 38% 32%)" : "hsl(0 58% 42%)") : "hsl(168 14% 45%)"}
+          color={hasResult ? (passed ? "hsl(152 38% 32%)" : "hsl(28 75% 42%)") : "hsl(168 14% 45%)"}
           accent={hasResult && passed ? "hsl(152 38% 42%)" : "hsl(38 55% 56%)"}
         />
         <ScoreCard
           title="Sertifikat"
-          value={passed ? "Tersedia" : "Belum"}
-          subtitle={passed ? "Siap diunduh" : "Selesaikan tes dahulu"}
+          value={passed && paymentStatus === "lunas" ? "Tersedia" : "Belum"}
+          subtitle={
+            passed && paymentStatus === "lunas"
+              ? "Siap diunduh"
+              : passed
+                ? "Selesaikan pembayaran"
+                : "Lulus sesi mengaji dulu"
+          }
           icon={<Award className="w-5 h-5" />}
-          color={passed ? "hsl(38 55% 40%)" : "hsl(168 14% 45%)"}
+          color={passed && paymentStatus === "lunas" ? "hsl(38 55% 40%)" : "hsl(168 14% 45%)"}
           accent="hsl(38 55% 56%)"
         />
       </div>

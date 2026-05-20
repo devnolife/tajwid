@@ -2,15 +2,11 @@
 
 import { useAuth } from "@/lib/auth-client";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, MapPin, Clock, User, Lock } from "lucide-react";
-import type { Payment, Schedule, User as UserType } from "@shared/schema";
+import { Calendar, MapPin, Clock, User } from "lucide-react";
+import type { Schedule, User as UserType } from "@shared/schema";
 
 export default function JadwalSaya() {
   const { user } = useAuth();
-
-  const { data: payments } = useQuery<Payment[]>({
-    queryKey: ["/api/payments", `?studentId=${user?.id}`],
-  });
 
   const { data: schedules, isLoading } = useQuery<Schedule[]>({
     queryKey: ["/api/schedules", `?studentId=${user?.id}`],
@@ -20,28 +16,17 @@ export default function JadwalSaya() {
     queryKey: ["/api/users", "?role=instruktur"],
   });
 
-  const payment = payments?.[0];
-  const isPaymentVerified = payment?.status === "lunas";
-  const schedule = schedules?.[0];
+  // Ambil jadwal mendatang yang paling dekat; fallback ke jadwal pertama yang ada.
+  const now = Date.now();
+  const sorted = (schedules ?? [])
+    .slice()
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const schedule = sorted.find((s) => new Date(s.date).getTime() >= now) ?? sorted[0];
 
   if (isLoading) {
     return (
       <div className="space-y-4 animate-pulse">
         <div className="h-64 rounded-2xl bg-gray-100" />
-      </div>
-    );
-  }
-
-  if (!isPaymentVerified) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 animate-in fade-in duration-500">
-        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: "#FEF3C7" }}>
-          <Lock className="w-10 h-10 text-amber-600" />
-        </div>
-        <h3 className="text-lg font-semibold mb-2" style={{ color: "#1A1A1A" }}>Jadwal Belum Tersedia</h3>
-        <p className="text-sm text-center max-w-md" style={{ color: "#888" }}>
-          Jadwal akan tersedia setelah pembayaran diverifikasi. Silakan selesaikan pembayaran terlebih dahulu.
-        </p>
       </div>
     );
   }
@@ -54,7 +39,8 @@ export default function JadwalSaya() {
         </div>
         <h3 className="text-lg font-semibold mb-2" style={{ color: "#1A1A1A" }}>Menunggu Jadwal</h3>
         <p className="text-sm text-center max-w-md" style={{ color: "#888" }}>
-          Pembayaran Anda sudah diverifikasi. Jadwal tes sedang diatur oleh admin. Mohon ditunggu.
+          Admin akan menjadwalkan sesi mengaji Anda. Mohon ditunggu — Anda akan
+          mendapat notifikasi begitu jadwal tersedia.
         </p>
       </div>
     );
@@ -62,15 +48,14 @@ export default function JadwalSaya() {
 
   const instructor = allUsers?.find(u => u.id === schedule.instructorId);
   const schedDate = new Date(schedule.date);
-  const now = new Date();
-  const diffMs = schedDate.getTime() - now.getTime();
+  const diffMs = schedDate.getTime() - now;
   const diffDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
   const diffHours = Math.max(0, Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="rounded-2xl border p-6 md:p-8" style={{ background: "#fff", borderColor: "#e8e4db" }}>
-        <h3 className="text-lg font-semibold mb-6" style={{ color: "#1A1A1A" }}>Jadwal Tes Tajwid</h3>
+        <h3 className="text-lg font-semibold mb-6" style={{ color: "#1A1A1A" }}>Jadwal Sesi Mengaji</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="rounded-xl p-5" style={{ background: "linear-gradient(135deg, #84B179 0%, #A2CB8B 100%)" }}>
@@ -118,6 +103,44 @@ export default function JadwalSaya() {
               <p className="text-xs font-medium mt-1" style={{ color: "#888" }}>Jam</p>
             </div>
           </div>
+        </div>
+      )}
+
+      {sorted.length > 1 && (
+        <div className="rounded-2xl border p-6" style={{ background: "#fff", borderColor: "#e8e4db" }}>
+          <h3 className="text-base font-semibold mb-4" style={{ color: "#1A1A1A" }}>Semua Jadwal Sesi</h3>
+          <ul className="space-y-2">
+            {sorted.map((s) => {
+              const d = new Date(s.date);
+              const past = d.getTime() < now;
+              return (
+                <li
+                  key={s.id}
+                  className="flex items-center justify-between gap-3 rounded-xl px-4 py-3"
+                  style={{ background: "#faf8f3", opacity: past ? 0.65 : 1 }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium" style={{ color: "#1A1A1A" }}>
+                      {d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "#888" }}>
+                      {d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB · {s.room}
+                      {s.location ? ` · ${s.location}` : ""}
+                    </p>
+                  </div>
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full shrink-0"
+                    style={{
+                      background: past ? "#E5E7EB" : "#D1FAE5",
+                      color: past ? "#6B7280" : "#059669",
+                    }}
+                  >
+                    {past ? "Lewat" : "Mendatang"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
     </div>

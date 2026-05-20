@@ -3,12 +3,13 @@
 import { useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Award, Download, Lock, Loader2 } from "lucide-react";
+import { Award, Download, Lock, Loader2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
 import Image from "next/image";
-import type { Assessment, Certificate } from "@shared/schema";
+import Link from "next/link";
+import type { Assessment, Certificate, Payment } from "@shared/schema";
 
 export default function Sertifikat() {
   const { user } = useAuth();
@@ -28,6 +29,10 @@ export default function Sertifikat() {
       return res.json();
     },
     enabled: !!user?.id,
+  });
+
+  const { data: payments, isLoading: loadingPayments } = useQuery<Payment[]>({
+    queryKey: ["/api/payments", `?studentId=${user?.id}`],
   });
 
   const generateCert = useMutation({
@@ -89,7 +94,8 @@ export default function Sertifikat() {
 
   const assessment = assessments?.[0];
   const passed = assessment?.passed;
-  const isLoading = loadingAssessment || loadingCert;
+  const paymentLunas = payments?.some((p) => p.status === "lunas") ?? false;
+  const isLoading = loadingAssessment || loadingCert || loadingPayments;
 
   if (isLoading) {
     return <div className="h-64 rounded-2xl bg-gray-100 animate-pulse" />;
@@ -98,15 +104,37 @@ export default function Sertifikat() {
   if (!passed) {
     return (
       <div className="flex flex-col items-center justify-center py-20 animate-in fade-in duration-500">
-        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: "#FEE2E2" }}>
-          <Lock className="w-10 h-10 text-red-400" />
+        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: "#FEF3C7" }}>
+          <Lock className="w-10 h-10 text-amber-600" />
         </div>
         <h3 className="text-lg font-semibold mb-2" style={{ color: "#1A1A1A" }}>Sertifikat Belum Tersedia</h3>
         <p className="text-sm text-center max-w-md" style={{ color: "#888" }}>
           {!assessment
-            ? "Anda belum menyelesaikan tes tajwid. Sertifikat akan tersedia setelah Anda dinyatakan lulus."
-            : "Maaf, Anda belum dinyatakan lulus. Silakan hubungi instruktur untuk informasi lebih lanjut."}
+            ? "Anda belum menyelesaikan sesi mengaji. Sertifikat akan tersedia setelah Anda dinyatakan lulus dan menyelesaikan pembayaran."
+            : "Anda diminta untuk mengulang pada sesi berikutnya. Sertifikat akan tersedia setelah Anda dinyatakan lulus."}
         </p>
+      </div>
+    );
+  }
+
+  if (!paymentLunas) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 animate-in fade-in duration-500">
+        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: "#FEF3C7" }}>
+          <CreditCard className="w-10 h-10 text-amber-600" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2" style={{ color: "#1A1A1A" }}>Selesaikan Pembayaran Dulu</h3>
+        <p className="text-sm text-center max-w-md mb-5" style={{ color: "#888" }}>
+          Selamat, Anda telah dinyatakan <strong>LULUS</strong>! Selesaikan
+          pembayaran biaya sertifikat agar sertifikat dapat diterbitkan.
+        </p>
+        <Link
+          href="/mahasiswa/pembayaran"
+          className="inline-flex items-center gap-2 px-5 h-11 rounded-xl font-semibold text-sm"
+          style={{ background: "#84B179", color: "#fff" }}
+        >
+          <CreditCard className="w-4 h-4" /> Ke Halaman Pembayaran
+        </Link>
       </div>
     );
   }

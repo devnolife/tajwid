@@ -36,6 +36,7 @@ export interface IStorage {
 
   getAssessment(id: string): Promise<Assessment | undefined>;
   getAssessmentByStudent(studentId: string): Promise<Assessment | undefined>;
+  getAssessmentsByStudent(studentId: string): Promise<Assessment[]>;
   getAssessmentsByInstructor(instructorId: string): Promise<Assessment[]>;
   getAllAssessments(): Promise<Assessment[]>;
   createAssessment(assessment: InsertAssessment): Promise<Assessment>;
@@ -150,8 +151,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAssessmentByStudent(studentId: string): Promise<Assessment | undefined> {
-    const [assessment] = await db.select().from(assessments).where(eq(assessments.studentId, studentId));
+    const [assessment] = await db
+      .select()
+      .from(assessments)
+      .where(eq(assessments.studentId, studentId))
+      .orderBy(desc(assessments.assessedAt))
+      .limit(1);
     return assessment;
+  }
+
+  async getAssessmentsByStudent(studentId: string): Promise<Assessment[]> {
+    return db
+      .select()
+      .from(assessments)
+      .where(eq(assessments.studentId, studentId))
+      .orderBy(desc(assessments.assessedAt));
   }
 
   async getAssessmentsByInstructor(instructorId: string): Promise<Assessment[]> {

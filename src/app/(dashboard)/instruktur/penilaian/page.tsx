@@ -11,9 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import {
-  ArrowLeft, Save, Users, AlertTriangle, BookOpen, Mic2, Sparkles, Heart, NotebookPen,
+  ArrowLeft, Save, Users, BookOpen, Mic2, Sparkles, Heart, NotebookPen, RotateCcw, CheckCircle2,
 } from "lucide-react";
-import type { User as UserType, Assessment, Payment } from "@shared/schema";
+import type { User as UserType, Assessment } from "@shared/schema";
 import { getMahasiswaPhotoUrl } from "@/lib/mahasiswa-photo";
 
 const C = {
@@ -44,6 +44,9 @@ export default function Penilaian() {
   const [makhorijul, setMakhorijul] = useState(70);
   const [adab, setAdab] = useState(70);
   const [notes, setNotes] = useState("");
+  // Outcome dipilih manual oleh instruktur: LULUS atau PERLU MENGULANG.
+  // Default: mengikuti ambang otomatis (≥70 → lulus), tapi bisa dioverride.
+  const [outcome, setOutcome] = useState<"lulus" | "perlu_mengulang" | null>(null);
 
   const { data: students, isLoading: isLoadingStudents } = useQuery<Omit<UserType, "password">[]>({
     queryKey: ["/api/users", "?role=mahasiswa"],
@@ -52,12 +55,10 @@ export default function Penilaian() {
     queryKey: ["/api/assessments", `?studentId=${studentId}`],
     enabled: !!studentId,
   });
-  const { data: payments } = useQuery<Payment[]>({ queryKey: ["/api/payments"] });
 
   const student = students?.find((s) => s.id === studentId);
+  // API mengembalikan riwayat terbaru → ambil yang paling baru sebagai dasar edit.
   const existing = existingAssessments?.[0];
-  const studentPayment = payments?.find((p) => p.studentId === studentId);
-  const isPaid = studentPayment?.status === "lunas";
 
   useEffect(() => {
     if (existing) {
@@ -66,11 +67,14 @@ export default function Penilaian() {
       setMakhorijul(existing.makhorijulHuruf);
       setAdab(existing.adab);
       setNotes(existing.notes || "");
+      setOutcome(existing.passed ? "lulus" : "perlu_mengulang");
     }
   }, [existing]);
 
   const totalScore = Math.round((tajwid + kelancaran + makhorijul + adab) / 4);
-  const passed = totalScore >= 70;
+  const autoPassed = totalScore >= 70;
+  const effectiveOutcome: "lulus" | "perlu_mengulang" = outcome ?? (autoPassed ? "lulus" : "perlu_mengulang");
+  const passed = effectiveOutcome === "lulus";
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -79,12 +83,19 @@ export default function Penilaian() {
         tajwid, kelancaran, makhorijulHuruf: makhorijul, adab,
         totalScore, passed, notes,
       };
-      if (existing) await apiRequest("PATCH", `/api/assessments/${existing.id}`, data);
-      else await apiRequest("POST", "/api/assessments", data);
+      // Selalu POST attempt baru agar riwayat tersimpan (mahasiswa bisa diminta
+      // mengulang berkali-kali). Untuk koreksi data lama, gunakan halaman admin.
+      await apiRequest("POST", "/api/assessments", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
-      toast({ title: "Berhasil", description: "Penilaian berhasil disimpan" });
+      queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
+      toast({
+        title: "Berhasil",
+        description: passed
+          ? "Penilaian disimpan. Tagihan biaya sertifikat dibuat otomatis."
+          : "Penilaian disimpan. Mahasiswa diminta mengulang pada sesi berikutnya.",
+      });
       setShowConfirm(false);
       router.push("/instruktur/mahasiswa-list");
     },
@@ -201,7 +212,7 @@ export default function Penilaian() {
           )}
 
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] tracking-[0.28em] uppercase font-semibold text-[hsl(38_85%_88%)]">{existing ? "Edit Penilaian" : "Penilaian Baru"}</p>
+            <p className="text-[11px] tracking-[0.28em] uppercase font-semibold text-[hsl(38_85%_88%)]">{existing ? "Sesi Penilaian Baru" : "Penilaian Pertama"}</p>
             <h1 className="font-display italic text-3xl md:text-4xl mt-1 text-white truncate">{student.name}</h1>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-white/65">
               {student.nim && <span>NIM <span className="font-mono">{student.nim}</span></span>}
@@ -212,23 +223,23 @@ export default function Penilaian() {
 
           {existing && (
             <div className="text-right">
-              <p className="text-[11px] uppercase tracking-widest text-white/50">Skor Sebelumnya</p>
+              <p className="text-[11px] uppercase tracking-widest text-white/50">Sesi Sebelumnya</p>
               <p className="font-display italic text-3xl text-[hsl(38_65%_85%)]">{existing.totalScore}/100</p>
-              <p className="text-[11px] mt-0.5" style={{ color: existing.passed ? C.goldSoft : "#fda4af" }}>
-                {existing.passed ? "Lulus" : "Tidak Lulus"}
+              <p className="text-[11px] mt-0.5" style={{ color: existing.passed ? C.goldSoft : "#fde68a" }}>
+                {existing.passed ? "Lulus" : "Perlu Mengulang"}
               </p>
             </div>
           )}
         </div>
       </section>
 
-      {!isPaid && (
-        <div className="rounded-2xl p-4 flex items-start gap-3 border" style={{ background: C.roseSoft, borderColor: `${C.rose}33` }}>
-          <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: C.rose }} />
+      {existing && !existing.passed && (
+        <div className="rounded-2xl p-4 flex items-start gap-3 border" style={{ background: "#FEF3C7", borderColor: "#FBBF24" }}>
+          <RotateCcw className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "#D97706" }} />
           <div>
-            <p className="text-sm font-bold" style={{ color: C.rose }}>Pembayaran Belum Lunas</p>
-            <p className="text-xs mt-0.5" style={{ color: "hsl(0 50% 40%)" }}>
-              Penilaian tidak dapat disimpan sampai mahasiswa menyelesaikan pembayaran.
+            <p className="text-sm font-bold" style={{ color: "#92400E" }}>Sesi Ulangan</p>
+            <p className="text-xs mt-0.5" style={{ color: "#92400E" }}>
+              Mahasiswa diminta mengulang pada sesi sebelumnya. Penilaian ini akan disimpan sebagai percobaan baru.
             </p>
           </div>
         </div>
@@ -285,24 +296,72 @@ export default function Penilaian() {
         <div
           className="mt-8 rounded-2xl p-5 md:p-6 flex flex-wrap items-center justify-between gap-4 border"
           style={{
-            background: passed ? `${C.sage}12` : `${C.rose}10`,
-            borderColor: passed ? `${C.sage}55` : `${C.rose}40`,
+            background: passed ? `${C.sage}12` : "#FEF3C7",
+            borderColor: passed ? `${C.sage}55` : "#FBBF24",
           }}
         >
           <div>
             <p className="text-[11px] tracking-[0.22em] uppercase font-semibold text-muted-foreground">Total Skor</p>
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="font-display italic text-5xl tabular-nums" style={{ color: passed ? C.sage : C.rose }}>{totalScore}</span>
+              <span className="font-display italic text-5xl tabular-nums" style={{ color: passed ? C.sage : "#D97706" }}>{totalScore}</span>
               <span className="text-sm text-muted-foreground">/100</span>
             </div>
-            <p className="text-xs mt-1 italic" style={{ color: passed ? C.sage : C.rose }}>{grade}</p>
+            <p className="text-xs mt-1 italic" style={{ color: passed ? C.sage : "#D97706" }}>{grade}</p>
           </div>
           <span
             className="px-5 py-2.5 rounded-full text-sm font-bold tracking-wider uppercase"
-            style={{ background: passed ? C.sage : C.rose, color: "#fff" }}
+            style={{ background: passed ? C.sage : "#D97706", color: "#fff" }}
           >
-            {passed ? "✓ Lulus" : "Tidak Lulus"}
+            {passed ? "✓ Lulus" : "Perlu Mengulang"}
           </span>
+        </div>
+
+        {/* === Outcome chooser — instruktur memutuskan secara manual === */}
+        <div className="mt-6 space-y-2">
+          <p className="text-sm font-bold flex items-center gap-2" style={{ color: C.emerald }}>
+            <CheckCircle2 className="w-4 h-4" /> Keputusan Akhir
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Pilih hasil sesi ini. Default mengikuti ambang skor (≥70 = Lulus), tapi Anda boleh mengubahnya berdasarkan penilaian Anda.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <button
+              type="button"
+              data-testid="outcome-lulus"
+              onClick={() => setOutcome("lulus")}
+              className="rounded-xl border-2 p-4 text-left transition-all"
+              style={{
+                borderColor: effectiveOutcome === "lulus" ? C.sage : C.taupe,
+                background: effectiveOutcome === "lulus" ? `${C.sage}10` : "#fff",
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5" style={{ color: C.sage }} />
+                <p className="font-bold text-sm" style={{ color: C.sage }}>LULUS</p>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Mahasiswa lulus. Tagihan biaya sertifikat dibuat otomatis.
+              </p>
+            </button>
+            <button
+              type="button"
+              data-testid="outcome-perlu-mengulang"
+              onClick={() => setOutcome("perlu_mengulang")}
+              className="rounded-xl border-2 p-4 text-left transition-all"
+              style={{
+                borderColor: effectiveOutcome === "perlu_mengulang" ? "#D97706" : C.taupe,
+                background: effectiveOutcome === "perlu_mengulang" ? "#FEF3C7" : "#fff",
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <RotateCcw className="w-5 h-5" style={{ color: "#D97706" }} />
+                <p className="font-bold text-sm" style={{ color: "#D97706" }}>PERLU MENGULANG</p>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Mahasiswa diminta mengulang pada sesi berikutnya. Tanpa biaya tambahan.
+              </p>
+            </button>
+          </div>
         </div>
 
         {/* === Notes === */}
@@ -323,23 +382,16 @@ export default function Penilaian() {
         <div className="mt-7 flex flex-wrap items-center gap-3">
           <Button
             data-testid="button-simpan-penilaian"
-            onClick={() => {
-              if (!isPaid) {
-                toast({ title: "Tidak dapat menyimpan", description: "Pembayaran mahasiswa belum lunas", variant: "destructive" });
-                return;
-              }
-              setShowConfirm(true);
-            }}
-            disabled={!isPaid}
+            onClick={() => setShowConfirm(true)}
             className="rounded-xl h-12 px-8 font-semibold transition-all"
             style={{
-              background: isPaid ? C.emerald : "hsl(168 14% 70%)",
+              background: C.emerald,
               color: C.cream,
-              boxShadow: isPaid ? `0 8px 20px ${C.emerald}33` : "none",
+              boxShadow: `0 8px 20px ${C.emerald}33`,
             }}
           >
             <Save className="w-4 h-4 mr-2" />
-            {existing ? "Perbarui Penilaian" : "Simpan Penilaian"}
+            Simpan Penilaian
           </Button>
           <Button
             variant="outline"
@@ -362,9 +414,19 @@ export default function Penilaian() {
               Simpan penilaian untuk <span className="font-semibold">{student.name}</span>?
               <br />
               Skor total: <span className="font-bold">{totalScore}/100</span> ({grade}) —{" "}
-              <span className="font-bold" style={{ color: passed ? C.sage : C.rose }}>
-                {passed ? "Lulus" : "Tidak Lulus"}
+              <span className="font-bold" style={{ color: passed ? C.sage : "#D97706" }}>
+                {passed ? "Lulus" : "Perlu Mengulang"}
               </span>
+              {passed && (
+                <span className="block text-xs mt-2 italic" style={{ color: C.emeraldSoft }}>
+                  Tagihan biaya sertifikat akan otomatis dibuat untuk mahasiswa.
+                </span>
+              )}
+              {!passed && (
+                <span className="block text-xs mt-2 italic" style={{ color: C.emeraldSoft }}>
+                  Mahasiswa akan diberitahu untuk mengulang pada sesi berikutnya.
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">

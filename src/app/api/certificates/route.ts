@@ -60,6 +60,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Student has not passed" }, { status: 400 });
     }
 
+    // UX baru: sertifikat hanya bisa diterbitkan setelah pembayaran biaya sertifikat LUNAS.
+    const studentPayments = await storage.getPaymentsByStudent(studentId);
+    const hasPaid = studentPayments.some((p) => p.status === "lunas");
+    if (!hasPaid) {
+      return NextResponse.json({ message: "Payment not completed" }, { status: 400 });
+    }
+
     const settings = await storage.getSettings();
 
     const cert = await storage.createCertificate({

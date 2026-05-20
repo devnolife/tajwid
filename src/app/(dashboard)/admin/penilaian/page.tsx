@@ -30,7 +30,7 @@ export default function PenilaianManagement() {
     return (assessments || []).filter(a => {
       const matchStatus = statusFilter === "semua" ||
         (statusFilter === "lulus" && a.passed) ||
-        (statusFilter === "tidak_lulus" && !a.passed);
+        (statusFilter === "perlu_mengulang" && !a.passed);
       if (!matchStatus) return false;
       if (!search) return true;
       const q = search.toLowerCase();
@@ -54,7 +54,7 @@ export default function PenilaianManagement() {
       "Makhorijul Huruf": a.makhorijulHuruf,
       Adab: a.adab,
       "Total Skor": a.totalScore,
-      Status: a.passed ? "Lulus" : "Tidak Lulus",
+      Status: a.passed ? "Lulus" : "Perlu Mengulang",
       Catatan: a.notes || "",
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -87,7 +87,7 @@ export default function PenilaianManagement() {
             <SelectContent>
               <SelectItem value="semua">Semua</SelectItem>
               <SelectItem value="lulus">Lulus</SelectItem>
-              <SelectItem value="tidak_lulus">Tidak Lulus</SelectItem>
+              <SelectItem value="perlu_mengulang">Perlu Mengulang</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -122,7 +122,7 @@ export default function PenilaianManagement() {
                   <td className="py-3 px-4 font-mono" style={{ color: "#84B179" }}>{a.kelancaran}</td>
                   <td className="py-3 px-4 font-mono" style={{ color: "#84B179" }}>{a.makhorijulHuruf}</td>
                   <td className="py-3 px-4 font-mono" style={{ color: "#84B179" }}>{a.adab}</td>
-                  <td className="py-3 px-4 font-bold" style={{ color: a.passed ? "#059669" : "#DC2626" }}>{a.totalScore}</td>
+                  <td className="py-3 px-4 font-bold" style={{ color: a.passed ? "#059669" : "#D97706" }}>{a.totalScore}</td>
                   <td className="py-3 px-4"><StatusBadge status={a.passed ? "lulus" : "tidak_lulus"} /></td>
                 </tr>
               ))}

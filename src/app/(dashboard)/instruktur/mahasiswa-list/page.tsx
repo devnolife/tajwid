@@ -21,19 +21,20 @@ const C = {
   rose: "hsl(0 65% 55%)",
 };
 
-type StatusKey = "lulus" | "tidak_lulus" | "belum_tes";
-type PayKey = "lunas" | "cicilan" | "belum_bayar";
+type StatusKey = "lulus" | "perlu_mengulang" | "belum_tes";
+type PayKey = "lunas" | "menunggu_verifikasi" | "belum_bayar" | "belum_diterbitkan";
 
 const statusMeta: Record<StatusKey, { label: string; bg: string; color: string }> = {
   lulus: { label: "Lulus", bg: `${C.sage}22`, color: C.sage },
-  tidak_lulus: { label: "Tidak Lulus", bg: `${C.rose}1f`, color: C.rose },
+  perlu_mengulang: { label: "Perlu Mengulang", bg: `${C.gold}1f`, color: C.goldDeep },
   belum_tes: { label: "Belum Diuji", bg: `${C.gold}1f`, color: C.goldDeep },
 };
 
 const payMeta: Record<PayKey, { label: string; bg: string; color: string }> = {
   lunas: { label: "Lunas", bg: `${C.sage}22`, color: C.sage },
-  cicilan: { label: "Cicilan", bg: `${C.gold}1f`, color: C.goldDeep },
+  menunggu_verifikasi: { label: "Menunggu Verifikasi", bg: `${C.gold}1f`, color: C.goldDeep },
   belum_bayar: { label: "Belum Bayar", bg: `${C.rose}1f`, color: C.rose },
+  belum_diterbitkan: { label: "Belum Diterbitkan", bg: `hsl(40 22% 88%)`, color: `hsl(168 14% 45%)` },
 };
 
 export default function DaftarMahasiswa() {
@@ -52,12 +53,13 @@ export default function DaftarMahasiswa() {
 
   const getStudentStatus = (studentId: string): StatusKey => {
     const a = allAssessments?.find((x) => x.studentId === studentId);
-    if (a) return a.passed ? "lulus" : "tidak_lulus";
+    if (a) return a.passed ? "lulus" : "perlu_mengulang";
     return "belum_tes";
   };
   const getPaymentStatus = (studentId: string): PayKey => {
     const p = allPayments?.find((x) => x.studentId === studentId);
-    return (p?.status as PayKey) || "belum_bayar";
+    if (!p) return "belum_diterbitkan";
+    return (p.status as PayKey) || "belum_bayar";
   };
   const getAssessment = (studentId: string) => allAssessments?.find((a) => a.studentId === studentId);
   const getNextSchedule = (studentId: string) => {
@@ -84,7 +86,7 @@ export default function DaftarMahasiswa() {
       total: all.length,
       lulus: all.filter((s) => getStudentStatus(s.id) === "lulus").length,
       belum: all.filter((s) => getStudentStatus(s.id) === "belum_tes").length,
-      tidakLulus: all.filter((s) => getStudentStatus(s.id) === "tidak_lulus").length,
+      perluMengulang: all.filter((s) => getStudentStatus(s.id) === "perlu_mengulang").length,
     };
   }, [students, allAssessments]);
 
@@ -125,7 +127,7 @@ export default function DaftarMahasiswa() {
           { label: "Total", value: stats.total, icon: Users, color: C.emerald, bg: `${C.emerald}10` },
           { label: "Lulus", value: stats.lulus, icon: CheckCircle2, color: C.sage, bg: `${C.sage}1c` },
           { label: "Belum Diuji", value: stats.belum, icon: Clock, color: C.goldDeep, bg: `${C.gold}1f` },
-          { label: "Tidak Lulus", value: stats.tidakLulus, icon: XCircle, color: C.rose, bg: `${C.rose}1a` },
+          { label: "Perlu Mengulang", value: stats.perluMengulang, icon: XCircle, color: C.goldDeep, bg: `${C.gold}1a` },
         ].map((s) => {
           const Icon = s.icon;
           return (
@@ -164,7 +166,7 @@ export default function DaftarMahasiswa() {
             <SelectItem value="semua">Semua Status</SelectItem>
             <SelectItem value="belum_tes">Belum Diuji</SelectItem>
             <SelectItem value="lulus">Lulus</SelectItem>
-            <SelectItem value="tidak_lulus">Tidak Lulus</SelectItem>
+            <SelectItem value="perlu_mengulang">Perlu Mengulang</SelectItem>
           </SelectContent>
         </Select>
 
@@ -280,7 +282,7 @@ export default function DaftarMahasiswa() {
 
                 <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px]" style={{ borderColor: `${C.taupe}88` }}>
                   {a ? (
-                    <span className="font-semibold" style={{ color: a.passed ? C.sage : C.rose }}>
+                    <span className="font-semibold" style={{ color: a.passed ? C.sage : C.goldDeep }}>
                       Skor: {a.totalScore}/100
                     </span>
                   ) : next ? (
@@ -291,7 +293,7 @@ export default function DaftarMahasiswa() {
                     <span className="text-muted-foreground italic">Belum dijadwalkan</span>
                   )}
                   <span className="inline-flex items-center gap-1 font-semibold" style={{ color: C.emerald }}>
-                    {a ? "Edit nilai" : "Mulai uji"} <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                    {a ? (a.passed ? "Lihat" : "Uji ulang") : "Mulai uji"} <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                   </span>
                 </div>
               </button>
@@ -363,7 +365,7 @@ export default function DaftarMahasiswa() {
                           {sm.label}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right font-semibold tabular-nums" style={{ color: a ? (a.passed ? C.sage : C.rose) : C.emeraldSoft }}>
+                      <td className="py-3 px-4 text-right font-semibold tabular-nums" style={{ color: a ? (a.passed ? C.sage : C.goldDeep) : C.emeraldSoft }}>
                         {a ? `${a.totalScore}/100` : "—"}
                       </td>
                     </tr>

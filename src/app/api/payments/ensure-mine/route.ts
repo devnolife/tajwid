@@ -23,6 +23,17 @@ export async function POST() {
       return NextResponse.json({ created: false, payments: existing });
     }
 
+    // UX baru: tagihan dibuat hanya setelah mahasiswa dinyatakan LULUS oleh instruktur.
+    // Sebelum lulus, tidak ada tagihan apapun.
+    const latest = await storage.getAssessmentByStudent(studentId);
+    if (!latest?.passed) {
+      return NextResponse.json({
+        created: false,
+        payments: [],
+        reason: "not_yet_passed",
+      });
+    }
+
     const settings = await storage.getSettings();
     const amount = settings?.paymentAmount ?? "25000";
     const academicYear = settings?.academicYear ?? "2025/2026";
@@ -32,7 +43,7 @@ export async function POST() {
       studentId,
       amount,
       dueDate,
-      description: `Biaya Ujian Tajwid Tahun Akademik ${academicYear}`,
+      description: `Biaya Sertifikat Tajwid Tahun Akademik ${academicYear}`,
       status: "belum_bayar",
     });
 

@@ -106,9 +106,10 @@ export default function Pembayaran() {
         <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: "#F3F4F6" }}>
           <Wallet className="w-8 h-8" style={{ color: "#9CA3AF" }} />
         </div>
-        <h3 className="text-base font-semibold mb-1" style={{ color: "#1A1A1A" }}>Belum Ada Pembayaran</h3>
+        <h3 className="text-base font-semibold mb-1" style={{ color: "#1A1A1A" }}>Belum Ada Tagihan</h3>
         <p className="text-sm text-center max-w-sm" style={{ color: "#888" }}>
-          Belum ada tagihan pembayaran untuk akun Anda saat ini.
+          Tagihan akan otomatis muncul setelah Anda dinyatakan <strong>LULUS</strong> oleh
+          instruktur. Selesaikan dulu sesi mengaji Anda — biaya sertifikat dibayarkan setelah lulus.
         </p>
       </div>
     );

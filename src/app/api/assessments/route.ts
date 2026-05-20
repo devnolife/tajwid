@@ -14,8 +14,8 @@ export async function GET(request: Request) {
   const instructorId = searchParams.get("instructorId");
 
   if (studentId) {
-    const assessment = await storage.getAssessmentByStudent(studentId);
-    return NextResponse.json(assessment ? [assessment] : []);
+    const assessments = await storage.getAssessmentsByStudent(studentId);
+    return NextResponse.json(assessments);
   }
 
   if (instructorId) {
@@ -44,6 +44,32 @@ export async function POST(request: Request) {
     }
     const assessment = await storage.createAssessment(body);
     if (assessment.studentId) {
+      // Saat mahasiswa dinyatakan LULUS, otomatis buatkan tagihan biaya
+      // (kalau belum punya tagihan aktif). Pembayaran dilakukan setelah lulus.
+      if (assessment.passed) {
+        const existing = await storage.getPaymentsByStudent(assessment.studentId);
+        const hasActive = existing.some(
+          (p) => p.status === "belum_bayar" || p.status === "menunggu_verifikasi" || p.status === "lunas",
+        );
+        if (!hasActive) {
+          const settings = await storage.getSettings();
+          const amount = settings?.paymentAmount ?? "25000";
+          const academicYear = settings?.academicYear ?? "2025/2026";
+          const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          try {
+            const newPayment = await storage.createPayment({
+              studentId: assessment.studentId,
+              amount,
+              dueDate,
+              description: `Biaya Sertifikat Tajwid Tahun Akademik ${academicYear}`,
+              status: "belum_bayar",
+            });
+            await notify(notifyTemplates.paymentCreated(assessment.studentId, newPayment.amount, newPayment.id));
+          } catch (err) {
+            console.error("[assessments] gagal membuat tagihan otomatis:", err);
+          }
+        }
+      }
       await notify(notifyTemplates.assessmentPublished(assessment.studentId, assessment.totalScore, assessment.passed));
     }
     return NextResponse.json(assessment);

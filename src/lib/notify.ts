@@ -27,9 +27,9 @@ export const notifyTemplates = {
     type: "payment",
     title: status === "lunas" ? "Pembayaran disetujui" : "Pembayaran ditolak",
     message: status === "lunas"
-      ? "Bukti pembayaran Anda telah diverifikasi. Silakan menunggu jadwal tes."
+      ? "Bukti pembayaran Anda telah diverifikasi. Sertifikat sudah dapat diunduh."
       : "Bukti pembayaran Anda ditolak. Silakan upload ulang dengan bukti yang valid.",
-    link: `/mahasiswa/pembayaran`,
+    link: status === "lunas" ? `/mahasiswa/sertifikat` : `/mahasiswa/pembayaran`,
     read: false,
   }),
   paymentNeedsVerification: (adminId: string, studentName: string): InsertNotification => ({
@@ -59,11 +59,11 @@ export const notifyTemplates = {
   assessmentPublished: (userId: string, score: number, passed: boolean): InsertNotification => ({
     userId,
     type: "result",
-    title: passed ? "Selamat, Anda LULUS!" : "Hasil tes telah keluar",
+    title: passed ? "Selamat, Anda LULUS!" : "Hasil tes: Perlu Mengulang",
     message: passed
-      ? `Anda dinyatakan lulus dengan skor ${score}. Sertifikat sudah dapat diunduh.`
-      : `Skor Anda ${score}. Silakan hubungi instruktur untuk informasi lebih lanjut.`,
-    link: passed ? `/mahasiswa/sertifikat` : `/mahasiswa/hasil`,
+      ? `Anda dinyatakan lulus dengan skor ${score}. Selesaikan pembayaran agar sertifikat dapat diterbitkan.`
+      : `Skor Anda ${score}. Anda diminta mengulang mengaji pada jadwal berikutnya. Lihat catatan dari instruktur.`,
+    link: passed ? `/mahasiswa/pembayaran` : `/mahasiswa/hasil`,
     read: false,
   }),
 };

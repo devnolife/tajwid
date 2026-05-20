@@ -10,10 +10,8 @@ export async function PATCH(
   if (!session?.user) {
     return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
   }
-  if ((session.user as any).role !== "admin") {
-    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-  }
-
+  const role = (session.user as any).role;
+  const userId = (session.user as any).id;
   const { id } = await params;
 
   try {
@@ -21,6 +19,22 @@ export async function PATCH(
     if (body.date && typeof body.date === "string") {
       body.date = new Date(body.date);
     }
+
+    if (role !== "admin") {
+      const existing = await storage.getSchedule(id);
+      if (!existing) {
+        return NextResponse.json({ message: "Not found" }, { status: 404 });
+      }
+      if (role !== "instruktur" || existing.instructorId !== userId) {
+        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
+      // Instruktur hanya boleh mengubah status sesinya sendiri
+      const allowed: any = {};
+      if (body.status) allowed.status = body.status;
+      const schedule = await storage.updateSchedule(id, allowed);
+      return NextResponse.json(schedule);
+    }
+
     const schedule = await storage.updateSchedule(id, body);
     if (!schedule) {
       return NextResponse.json({ message: "Not found" }, { status: 404 });

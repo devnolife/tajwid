@@ -66,4 +66,12 @@ export const notifyTemplates = {
     link: passed ? `/mahasiswa/pembayaran` : `/mahasiswa/hasil`,
     read: false,
   }),
+  repeatScheduleCreated: (userId: string, date: Date, room: string): InsertNotification => ({
+    userId,
+    type: "schedule",
+    title: "Jadwal mengaji ulang",
+    message: `Anda diminta mengulang mengaji pada ${date.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} pukul ${date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} di ${room}.`,
+    link: `/mahasiswa/jadwal`,
+    read: false,
+  }),
 };

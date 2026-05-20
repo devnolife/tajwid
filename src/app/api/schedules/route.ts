@@ -32,7 +32,9 @@ export async function POST(request: Request) {
   if (!session?.user) {
     return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
   }
-  if ((session.user as any).role !== "admin") {
+  const role = (session.user as any).role;
+  const userId = (session.user as any).id;
+  if (role !== "admin" && role !== "instruktur") {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
@@ -40,6 +42,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     if (body.date && typeof body.date === "string") {
       body.date = new Date(body.date);
+    }
+    // Instruktur hanya boleh membuat sesi untuk dirinya sendiri (mis. jadwal ulang manual)
+    if (role === "instruktur" && body.instructorId !== userId) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
     const schedule = await storage.createSchedule(body);
     if (schedule.studentId) {

@@ -7,6 +7,7 @@ export const roleEnum = pgEnum("role", ["mahasiswa", "instruktur", "admin"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["belum_bayar", "menunggu_verifikasi", "lunas", "ditolak"]);
 export const testStatusEnum = pgEnum("test_status", ["belum_tes", "sudah_tes", "lulus", "tidak_lulus"]);
 export const notificationTypeEnum = pgEnum("notification_type", ["info", "payment", "schedule", "result", "certificate", "system"]);
+export const scheduleStatusEnum = pgEnum("schedule_status", ["scheduled", "completed", "no_show", "cancelled"]);
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -40,12 +41,16 @@ export const schedules = pgTable("schedules", {
   date: timestamp("date").notNull(),
   room: text("room").notNull(),
   location: text("location"),
+  status: scheduleStatusEnum("status").notNull().default("scheduled"),
+  isRepeat: boolean("is_repeat").notNull().default(false),
+  parentScheduleId: varchar("parent_schedule_id"),
 });
 
 export const assessments = pgTable("assessments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   studentId: varchar("student_id").notNull().references(() => users.id),
   instructorId: varchar("instructor_id").notNull().references(() => users.id),
+  scheduleId: varchar("schedule_id").references(() => schedules.id),
   tajwid: integer("tajwid").notNull().default(0),
   kelancaran: integer("kelancaran").notNull().default(0),
   makhorijulHuruf: integer("makhorijul_huruf").notNull().default(0),

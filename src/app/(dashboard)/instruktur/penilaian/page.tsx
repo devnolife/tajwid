@@ -11,9 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import {
-  ArrowLeft, Save, Users, BookOpen, Mic2, Sparkles, Heart, NotebookPen, RotateCcw, CheckCircle2,
+  ArrowLeft, Save, Users, BookOpen, Mic2, Sparkles, Heart, NotebookPen, RotateCcw, CheckCircle2, Calendar, Clock, MapPin,
 } from "lucide-react";
-import type { User as UserType, Assessment } from "@shared/schema";
+import type { User as UserType, Assessment, Schedule } from "@shared/schema";
 import { getMahasiswaPhotoUrl } from "@/lib/mahasiswa-photo";
 
 const C = {
@@ -35,6 +35,7 @@ export default function Penilaian() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const studentId = searchParams.get("studentId");
+  const scheduleId = searchParams.get("scheduleId");
   const { user } = useAuth();
   const { toast } = useToast();
   const [showConfirm, setShowConfirm] = useState(false);
@@ -48,6 +49,12 @@ export default function Penilaian() {
   // Default: mengikuti ambang otomatis (≥70 → lulus), tapi bisa dioverride.
   const [outcome, setOutcome] = useState<"lulus" | "perlu_mengulang" | null>(null);
 
+  // Jadwal ulang otomatis ketika instruktur memilih Perlu Mengulang.
+  // Default: 7 hari ke depan, jam yang sama dengan sesi ini (atau 09:00).
+  const [repeatAt, setRepeatAt] = useState<string>("");
+  const [repeatRoom, setRepeatRoom] = useState<string>("");
+  const [scheduleRepeatNow, setScheduleRepeatNow] = useState(true);
+
   const { data: students, isLoading: isLoadingStudents } = useQuery<Omit<UserType, "password">[]>({
     queryKey: ["/api/users", "?role=mahasiswa"],
   });
@@ -55,6 +62,13 @@ export default function Penilaian() {
     queryKey: ["/api/assessments", `?studentId=${studentId}`],
     enabled: !!studentId,
   });
+  const { data: instructorSchedules } = useQuery<Schedule[]>({
+    queryKey: ["/api/schedules", `?instructorId=${user?.id}`],
+    enabled: !!user?.id,
+  });
+  const currentSchedule = scheduleId
+    ? instructorSchedules?.find((s) => s.id === scheduleId)
+    : undefined;
 
   const student = students?.find((s) => s.id === studentId);
   // API mengembalikan riwayat terbaru → ambil yang paling baru sebagai dasar edit.
@@ -71,6 +85,19 @@ export default function Penilaian() {
     }
   }, [existing]);
 
+  // Inisialisasi default jadwal ulang berdasarkan sesi saat ini (jika ada)
+  useEffect(() => {
+    if (repeatAt) return;
+    const base = currentSchedule ? new Date(currentSchedule.date) : new Date();
+    const next = new Date(base);
+    next.setDate(next.getDate() + 7);
+    // Format untuk <input type="datetime-local">: YYYY-MM-DDTHH:mm
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const local = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}T${pad(next.getHours())}:${pad(next.getMinutes())}`;
+    setRepeatAt(local);
+    if (currentSchedule?.room) setRepeatRoom(currentSchedule.room);
+  }, [currentSchedule, repeatAt]);
+
   const totalScore = Math.round((tajwid + kelancaran + makhorijul + adab) / 4);
   const autoPassed = totalScore >= 70;
   const effectiveOutcome: "lulus" | "perlu_mengulang" = outcome ?? (autoPassed ? "lulus" : "perlu_mengulang");
@@ -78,11 +105,17 @@ export default function Penilaian() {
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const data = {
+      const data: Record<string, any> = {
         studentId, instructorId: user?.id,
         tajwid, kelancaran, makhorijulHuruf: makhorijul, adab,
         totalScore, passed, notes,
       };
+      if (scheduleId) data.scheduleId = scheduleId;
+      // Saat Perlu Mengulang & instruktur memilih sekaligus jadwal ulang
+      if (!passed && scheduleRepeatNow && repeatAt) {
+        data.repeatScheduleAt = new Date(repeatAt).toISOString();
+        if (repeatRoom) data.repeatRoom = repeatRoom;
+      }
       // Selalu POST attempt baru agar riwayat tersimpan (mahasiswa bisa diminta
       // mengulang berkali-kali). Untuk koreksi data lama, gunakan halaman admin.
       await apiRequest("POST", "/api/assessments", data);
@@ -90,14 +123,17 @@ export default function Penilaian() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/schedules"] });
       toast({
         title: "Berhasil",
         description: passed
           ? "Penilaian disimpan. Tagihan biaya sertifikat dibuat otomatis."
-          : "Penilaian disimpan. Mahasiswa diminta mengulang pada sesi berikutnya.",
+          : scheduleRepeatNow && repeatAt
+            ? "Penilaian disimpan. Jadwal ulang dibuat & mahasiswa diberi notifikasi."
+            : "Penilaian disimpan. Mahasiswa diminta mengulang pada sesi berikutnya.",
       });
       setShowConfirm(false);
-      router.push("/instruktur/mahasiswa-list");
+      router.push(scheduleId ? "/instruktur/sesi-hari-ini" : "/instruktur/mahasiswa-list");
     },
     onError: () => {
       toast({ title: "Gagal", description: "Terjadi kesalahan saat menyimpan", variant: "destructive" });
@@ -233,6 +269,33 @@ export default function Penilaian() {
         </div>
       </section>
 
+      {currentSchedule && (
+        <div className="rounded-2xl p-4 flex items-start gap-3 border" style={{ background: `${C.emerald}08`, borderColor: `${C.emerald}30` }}>
+          <Calendar className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: C.emerald }} />
+          <div className="flex-1">
+            <p className="text-sm font-bold" style={{ color: C.emerald }}>Sesi yang dinilai</p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs" style={{ color: C.emeraldSoft }}>
+              <span className="inline-flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                {new Date(currentSchedule.date).toLocaleString("id-ID", {
+                  weekday: "long", day: "numeric", month: "long", year: "numeric",
+                  hour: "2-digit", minute: "2-digit",
+                })}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5" />
+                {currentSchedule.room}
+              </span>
+              {currentSchedule.isRepeat && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase" style={{ background: "#FEF3C7", color: "#92400E" }}>
+                  Sesi Ulangan
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {existing && !existing.passed && (
         <div className="rounded-2xl p-4 flex items-start gap-3 border" style={{ background: "#FEF3C7", borderColor: "#FBBF24" }}>
           <RotateCcw className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "#D97706" }} />
@@ -364,6 +427,61 @@ export default function Penilaian() {
           </div>
         </div>
 
+        {/* === Repeat schedule picker — muncul saat Perlu Mengulang === */}
+        {!passed && (
+          <div className="mt-6 rounded-2xl border p-5" style={{ background: "#FFFBEB", borderColor: "#FBBF24" }}>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                data-testid="checkbox-repeat-now"
+                checked={scheduleRepeatNow}
+                onChange={(e) => setScheduleRepeatNow(e.target.checked)}
+                className="mt-1 w-4 h-4 accent-amber-600"
+              />
+              <div className="flex-1">
+                <p className="text-sm font-bold" style={{ color: "#92400E" }}>
+                  Jadwalkan sesi ulang sekarang
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "#92400E" }}>
+                  Mahasiswa akan langsung tahu kapan harus datang lagi. Bisa dilewati jika mau dijadwalkan terpisah.
+                </p>
+              </div>
+            </label>
+
+            {scheduleRepeatNow && (
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 pl-7">
+                <div>
+                  <label className="text-xs font-semibold flex items-center gap-1 mb-1.5" style={{ color: "#92400E" }}>
+                    <Calendar className="w-3.5 h-3.5" /> Tanggal & Waktu Ulang
+                  </label>
+                  <input
+                    type="datetime-local"
+                    data-testid="input-repeat-at"
+                    value={repeatAt}
+                    onChange={(e) => setRepeatAt(e.target.value)}
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                    style={{ borderColor: "#FBBF24", background: "#fff" }}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold flex items-center gap-1 mb-1.5" style={{ color: "#92400E" }}>
+                    <MapPin className="w-3.5 h-3.5" /> Ruang
+                  </label>
+                  <input
+                    type="text"
+                    data-testid="input-repeat-room"
+                    value={repeatRoom}
+                    onChange={(e) => setRepeatRoom(e.target.value)}
+                    placeholder="Mis. Ruang Mengaji A"
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                    style={{ borderColor: "#FBBF24", background: "#fff" }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* === Notes === */}
         <div className="mt-7 space-y-2">
           <label className="text-sm font-bold flex items-center gap-2" style={{ color: C.emerald }}>
@@ -424,7 +542,9 @@ export default function Penilaian() {
               )}
               {!passed && (
                 <span className="block text-xs mt-2 italic" style={{ color: C.emeraldSoft }}>
-                  Mahasiswa akan diberitahu untuk mengulang pada sesi berikutnya.
+                  {scheduleRepeatNow && repeatAt
+                    ? `Jadwal ulang akan dibuat: ${new Date(repeatAt).toLocaleString("id-ID", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })} di ${repeatRoom || "ruang yang sama"}.`
+                    : "Mahasiswa akan diberitahu untuk mengulang pada sesi berikutnya."}
                 </span>
               )}
             </DialogDescription>

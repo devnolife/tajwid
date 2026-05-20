@@ -2,8 +2,8 @@
 
 import { useAuth } from "@/lib/auth-client";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, CheckCircle, RotateCcw, History } from "lucide-react";
-import type { Assessment } from "@shared/schema";
+import { FileText, CheckCircle, RotateCcw, History, MapPin, Calendar } from "lucide-react";
+import type { Assessment, Schedule } from "@shared/schema";
 
 export default function HasilTajwid() {
   const { user } = useAuth();
@@ -11,10 +11,21 @@ export default function HasilTajwid() {
   const { data: assessments, isLoading } = useQuery<Assessment[]>({
     queryKey: ["/api/assessments", `?studentId=${user?.id}`],
   });
+  const { data: schedules } = useQuery<Schedule[]>({
+    queryKey: ["/api/schedules", `?studentId=${user?.id}`],
+    enabled: !!user?.id,
+  });
 
   // API mengembalikan riwayat dari yang terbaru ke yang terlama.
   const history = assessments ?? [];
   const assessment = history[0];
+
+  // Cari jadwal ulang yang masih akan datang (status=scheduled, isRepeat=true) untuk attempt terakhir
+  const upcomingRepeat = (schedules ?? [])
+    .filter((s: any) => s.isRepeat && s.status === "scheduled" && new Date(s.date) >= new Date())
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+
+  const scheduleById = (id?: string | null) => (id ? schedules?.find((s) => s.id === id) : undefined);
 
   if (isLoading) {
     return (
@@ -106,12 +117,30 @@ export default function HasilTajwid() {
         {!assessment.passed && (
           <div className="mt-6 rounded-xl p-4 flex items-start gap-3" style={{ background: "#FEF3C7" }}>
             <RotateCcw className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#D97706" }} />
-            <div>
+            <div className="flex-1">
               <p className="text-sm font-semibold" style={{ color: "#92400E" }}>Anda diminta untuk mengulang.</p>
               <p className="text-xs mt-1" style={{ color: "#92400E" }}>
                 Pelajari catatan instruktur, lalu hadiri jadwal sesi berikutnya. Tidak ada biaya
                 tambahan untuk mengulang — pembayaran sertifikat hanya muncul setelah Anda dinyatakan lulus.
               </p>
+              {upcomingRepeat && (
+                <div className="mt-3 rounded-lg p-3 border" style={{ background: "#fff", borderColor: "#FBBF24" }}>
+                  <p className="text-[11px] uppercase tracking-wider font-bold" style={{ color: "#92400E" }}>Jadwal Mengulang</p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs" style={{ color: "#92400E" }}>
+                    <span className="inline-flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {new Date(upcomingRepeat.date).toLocaleString("id-ID", {
+                        weekday: "long", day: "numeric", month: "long", year: "numeric",
+                        hour: "2-digit", minute: "2-digit",
+                      })}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5" />
+                      {upcomingRepeat.room}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -131,34 +160,45 @@ export default function HasilTajwid() {
             <h3 className="text-base font-semibold" style={{ color: "#1A1A1A" }}>Riwayat Penilaian</h3>
           </div>
           <ul className="space-y-2">
-            {history.map((a, i) => (
-              <li
-                key={a.id}
-                className="flex items-center justify-between gap-3 rounded-xl px-4 py-3"
-                style={{ background: "#faf8f3" }}
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium" style={{ color: "#1A1A1A" }}>
-                    Percobaan ke-{history.length - i}
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: "#888" }}>
-                    {a.assessedAt ? new Date(a.assessedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-sm font-bold tabular-nums" style={{ color: "#1A1A1A" }}>{a.totalScore}/100</span>
-                  <span
-                    className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full"
-                    style={{
-                      background: a.passed ? "#D1FAE5" : "#FEF3C7",
-                      color: a.passed ? "#059669" : "#D97706",
-                    }}
-                  >
-                    {a.passed ? "Lulus" : "Perlu Mengulang"}
-                  </span>
-                </div>
-              </li>
-            ))}
+            {history.map((a, i) => {
+              const sch = scheduleById((a as any).scheduleId);
+              return (
+                <li
+                  key={a.id}
+                  className="flex items-center justify-between gap-3 rounded-xl px-4 py-3"
+                  style={{ background: "#faf8f3" }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium" style={{ color: "#1A1A1A" }}>
+                      Percobaan ke-{history.length - i}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "#888" }}>
+                      {a.assessedAt ? new Date(a.assessedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}
+                      {sch && (
+                        <>
+                          {" · "}
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="w-3 h-3" /> {sch.room}
+                          </span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-sm font-bold tabular-nums" style={{ color: "#1A1A1A" }}>{a.totalScore}/100</span>
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full"
+                      style={{
+                        background: a.passed ? "#D1FAE5" : "#FEF3C7",
+                        color: a.passed ? "#059669" : "#D97706",
+                      }}
+                    >
+                      {a.passed ? "Lulus" : "Perlu Mengulang"}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

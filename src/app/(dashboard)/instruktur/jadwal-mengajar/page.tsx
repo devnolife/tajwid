@@ -3,8 +3,10 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-client";
-import { useQuery } from "@tanstack/react-query";
-import { Calendar, MapPin, Clock, ClipboardList, CheckCircle2, History, ChevronRight } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Calendar, MapPin, Clock, ClipboardList, CheckCircle2, History, ChevronRight, UserX, RotateCcw } from "lucide-react";
 import type { Schedule, User as UserType, Assessment } from "@shared/schema";
 import { getMahasiswaPhotoUrl } from "@/lib/mahasiswa-photo";
 
@@ -27,6 +29,7 @@ type Filter = "semua" | "hari-ini" | "akan-datang" | "selesai";
 export default function JadwalUjianMengaji() {
   const router = useRouter();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [filter, setFilter] = useState<Filter>("semua");
 
   const { data: schedules, isLoading } = useQuery<Schedule[]>({
@@ -39,6 +42,17 @@ export default function JadwalUjianMengaji() {
 
   const { data: assessments } = useQuery<Assessment[]>({
     queryKey: ["/api/assessments", `?instructorId=${user?.id}`],
+  });
+
+  const markNoShow = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("PATCH", `/api/schedules/${id}`, { status: "no_show" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/schedules"] });
+      toast({ title: "Ditandai tidak hadir", description: "Status sesi diperbarui." });
+    },
+    onError: () => toast({ title: "Gagal", description: "Tidak dapat mengubah status sesi", variant: "destructive" }),
   });
 
   const now = new Date();
@@ -216,92 +230,126 @@ export default function JadwalUjianMengaji() {
               const student = students?.find((st) => st.id === s.studentId);
               const time = s._date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
               const isPast = s._date < now;
-              const done = isAssessed(s.studentId);
+              const done = s.status === "completed" || isAssessed(s.studentId);
+              const noShow = s.status === "no_show";
+              const cancelled = s.status === "cancelled";
+              const isRepeat = (s as any).isRepeat;
+              const disabled = cancelled;
 
               return (
-                <button
+                <div
                   key={s.id}
-                  onClick={() => router.push(`/instruktur/penilaian?studentId=${s.studentId}`)}
                   data-testid={`schedule-card-${s.id}`}
-                  className="group relative text-left rounded-2xl border p-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 overflow-hidden"
+                  className="group relative rounded-2xl border p-4 transition-all duration-200 hover:shadow-lg overflow-hidden"
                   style={{
-                    background: isPast ? C.bgSoft : "#fff",
-                    borderColor: done ? `${C.sage}55` : C.taupe,
+                    background: noShow ? "#FEE2E2" : isPast ? C.bgSoft : "#fff",
+                    borderColor: done ? `${C.sage}55` : noShow ? "#FCA5A5" : C.taupe,
                     animationDelay: `${idx * 60}ms`,
+                    opacity: cancelled ? 0.55 : 1,
                   }}
                 >
-                  {done && (
-                    <span
-                      className="absolute top-3 right-3 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                      style={{ background: `${C.sage}22`, color: C.sage }}
-                    >
-                      <CheckCircle2 className="w-3 h-3" /> Sudah Dinilai
-                    </span>
-                  )}
-
-                  <div className="flex items-start gap-4">
-                    {/* time block */}
-                    <div
-                      className="flex flex-col items-center justify-center min-w-[64px] py-2 rounded-xl border flex-shrink-0"
-                      style={{ borderColor: `${C.gold}55`, background: `${C.gold}14` }}
-                    >
-                      <span className="font-display text-xl leading-none" style={{ color: C.emerald }}>{time.split(":")[0]}</span>
-                      <span className="text-[10px] tracking-widest text-muted-foreground mt-1">:{time.split(":")[1]}</span>
-                    </div>
-
-                    {/* avatar */}
-                    {student?.nim ? (
-                      <img
-                        src={getMahasiswaPhotoUrl(student.nim)}
-                        alt={student.name}
-                        className="w-12 h-12 rounded-full object-cover border-2 flex-shrink-0"
-                        style={{ borderColor: `${C.gold}66` }}
-                        onError={(e) => {
-                          const t = e.target as HTMLImageElement;
-                          t.outerHTML = `<div class="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold border-2 flex-shrink-0" style="background:${C.emerald};color:${C.cream};border-color:${C.gold}66">${student?.name?.charAt(0) ?? "?"}</div>`;
-                        }}
-                      />
-                    ) : (
-                      <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold border-2 flex-shrink-0"
-                        style={{ background: C.emerald, color: C.cream, borderColor: `${C.gold}66` }}
-                      >
-                        {student?.name?.charAt(0) ?? "?"}
-                      </div>
+                  <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
+                    {done && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: `${C.sage}22`, color: C.sage }}>
+                        <CheckCircle2 className="w-3 h-3" /> Selesai
+                      </span>
                     )}
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{student?.name ?? "Mahasiswa"}</p>
-                      {student?.nim && (
-                        <p className="text-[11px] font-mono mt-0.5" style={{ color: C.emeraldSoft }}>NIM {student.nim}</p>
-                      )}
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1.5">
-                        <MapPin className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{s.room} · {s.location}</span>
-                      </div>
-                    </div>
-
-                    <ChevronRight
-                      className="w-5 h-5 flex-shrink-0 self-center text-muted-foreground transition-transform group-hover:translate-x-1"
-                      style={{ color: C.emerald }}
-                    />
+                    {noShow && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: "#FECACA", color: "#991B1B" }}>
+                        <UserX className="w-3 h-3" /> Tidak Hadir
+                      </span>
+                    )}
+                    {isRepeat && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#92400E" }}>
+                        <RotateCcw className="w-3 h-3" /> Ulangan
+                      </span>
+                    )}
                   </div>
 
-                  {!done && !isPast && (
-                    <div className="mt-3 pt-3 border-t flex items-center justify-between" style={{ borderColor: `${C.taupe}88` }}>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => router.push(`/instruktur/penilaian?studentId=${s.studentId}&scheduleId=${s.id}`)}
+                    className="w-full text-left disabled:cursor-not-allowed"
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* time block */}
+                      <div
+                        className="flex flex-col items-center justify-center min-w-[64px] py-2 rounded-xl border flex-shrink-0"
+                        style={{ borderColor: `${C.gold}55`, background: `${C.gold}14` }}
+                      >
+                        <span className="font-display text-xl leading-none" style={{ color: C.emerald }}>{time.split(":")[0]}</span>
+                        <span className="text-[10px] tracking-widest text-muted-foreground mt-1">:{time.split(":")[1]}</span>
+                      </div>
+
+                      {/* avatar */}
+                      {student?.nim ? (
+                        <img
+                          src={getMahasiswaPhotoUrl(student.nim)}
+                          alt={student.name}
+                          className="w-12 h-12 rounded-full object-cover border-2 flex-shrink-0"
+                          style={{ borderColor: `${C.gold}66` }}
+                          onError={(e) => {
+                            const t = e.target as HTMLImageElement;
+                            t.outerHTML = `<div class="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold border-2 flex-shrink-0" style="background:${C.emerald};color:${C.cream};border-color:${C.gold}66">${student?.name?.charAt(0) ?? "?"}</div>`;
+                          }}
+                        />
+                      ) : (
+                        <div
+                          className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold border-2 flex-shrink-0"
+                          style={{ background: C.emerald, color: C.cream, borderColor: `${C.gold}66` }}
+                        >
+                          {student?.name?.charAt(0) ?? "?"}
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">{student?.name ?? "Mahasiswa"}</p>
+                        {student?.nim && (
+                          <p className="text-[11px] font-mono mt-0.5" style={{ color: C.emeraldSoft }}>NIM {student.nim}</p>
+                        )}
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1.5">
+                          <MapPin className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{s.room}{s.location ? ` · ${s.location}` : ""}</span>
+                        </div>
+                      </div>
+
+                      {!disabled && (
+                        <ChevronRight
+                          className="w-5 h-5 flex-shrink-0 self-center text-muted-foreground transition-transform group-hover:translate-x-1"
+                          style={{ color: C.emerald }}
+                        />
+                      )}
+                    </div>
+                  </button>
+
+                  {!done && !noShow && !cancelled && (
+                    <div className="mt-3 pt-3 border-t flex items-center justify-between gap-2" style={{ borderColor: `${C.taupe}88` }}>
                       <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: C.goldDeep }}>
                         <ClipboardList className="w-3.5 h-3.5" />
                         Tap untuk mulai menguji
                       </span>
+                      <button
+                        type="button"
+                        data-testid={`btn-no-show-${s.id}`}
+                        onClick={() => {
+                          if (confirm(`Tandai ${student?.name ?? "mahasiswa"} tidak hadir?`)) markNoShow.mutate(s.id);
+                        }}
+                        disabled={markNoShow.isPending}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors hover:bg-red-50"
+                        style={{ color: "#B91C1C", borderColor: "#FCA5A5" }}
+                      >
+                        <UserX className="w-3 h-3" /> Tidak hadir
+                      </button>
                     </div>
                   )}
-                  {isPast && !done && (
-                    <div className="mt-3 pt-3 border-t flex items-center gap-1.5" style={{ borderColor: `${C.taupe}88` }}>
+                  {isPast && !done && !noShow && !cancelled && (
+                    <div className="mt-2 flex items-center gap-1.5">
                       <History className="w-3.5 h-3.5 text-muted-foreground" />
                       <span className="text-[11px] text-muted-foreground">Sesi telah lewat — masih dapat dinilai</span>
                     </div>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>

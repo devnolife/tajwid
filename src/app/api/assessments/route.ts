@@ -42,7 +42,24 @@ export async function POST(request: Request) {
     if (body.assessedAt && typeof body.assessedAt === "string") {
       body.assessedAt = new Date(body.assessedAt);
     }
+    // Extract non-schema fields before insert
+    const scheduleId: string | null = body.scheduleId ?? null;
+    const repeatScheduleAt: string | null = body.repeatScheduleAt ?? null;
+    const repeatRoom: string | null = body.repeatRoom ?? null;
+    delete body.repeatScheduleAt;
+    delete body.repeatRoom;
+
     const assessment = await storage.createAssessment(body);
+
+    // Tandai sesi yang dinilai sebagai "completed"
+    if (scheduleId) {
+      try {
+        await storage.updateSchedule(scheduleId, { status: "completed" } as any);
+      } catch (err) {
+        console.error("[assessments] gagal update status schedule:", err);
+      }
+    }
+
     if (assessment.studentId) {
       // Saat mahasiswa dinyatakan LULUS, otomatis buatkan tagihan biaya
       // (kalau belum punya tagihan aktif). Pembayaran dilakukan setelah lulus.
@@ -68,6 +85,25 @@ export async function POST(request: Request) {
           } catch (err) {
             console.error("[assessments] gagal membuat tagihan otomatis:", err);
           }
+        }
+      } else if (repeatScheduleAt) {
+        // Tidak lulus + instruktur sudah memilih jadwal ulang → buat sesi baru
+        try {
+          const parentSchedule = scheduleId ? await storage.getSchedule(scheduleId) : null;
+          const room = repeatRoom || parentSchedule?.room || "Ruang Mengaji";
+          const newSchedule = await storage.createSchedule({
+            studentId: assessment.studentId,
+            instructorId: assessment.instructorId,
+            date: new Date(repeatScheduleAt),
+            room,
+            location: parentSchedule?.location ?? null,
+            status: "scheduled" as any,
+            isRepeat: true as any,
+            parentScheduleId: scheduleId as any,
+          } as any);
+          await notify(notifyTemplates.repeatScheduleCreated(assessment.studentId, new Date(newSchedule.date), newSchedule.room));
+        } catch (err) {
+          console.error("[assessments] gagal membuat jadwal ulang:", err);
         }
       }
       await notify(notifyTemplates.assessmentPublished(assessment.studentId, assessment.totalScore, assessment.passed));

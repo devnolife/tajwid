@@ -16,12 +16,17 @@ export default function JadwalSaya() {
     queryKey: ["/api/users", "?role=instruktur"],
   });
 
-  // Ambil jadwal mendatang yang paling dekat; fallback ke jadwal pertama yang ada.
+  // Ambil jadwal mendatang yang masih aktif (belum selesai, belum dibatalkan, dan belum lewat);
+  // fallback ke yang paling baru bila tidak ada.
   const now = Date.now();
   const sorted = (schedules ?? [])
     .slice()
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const schedule = sorted.find((s) => new Date(s.date).getTime() >= now) ?? sorted[0];
+  const schedule =
+    sorted.find((s: any) => {
+      const active = !s.status || s.status === "scheduled";
+      return active && new Date(s.date).getTime() >= now;
+    }) ?? sorted[sorted.length - 1];
 
   if (isLoading) {
     return (
@@ -110,18 +115,31 @@ export default function JadwalSaya() {
         <div className="rounded-2xl border p-6" style={{ background: "#fff", borderColor: "#e8e4db" }}>
           <h3 className="text-base font-semibold mb-4" style={{ color: "#1A1A1A" }}>Semua Jadwal Sesi</h3>
           <ul className="space-y-2">
-            {sorted.map((s) => {
+            {sorted.map((s: any) => {
               const d = new Date(s.date);
               const past = d.getTime() < now;
+              const status = s.status as "scheduled" | "completed" | "no_show" | "cancelled" | undefined;
+              const isRepeat = !!s.isRepeat;
+              let badgeBg = past ? "#E5E7EB" : "#D1FAE5";
+              let badgeColor = past ? "#6B7280" : "#059669";
+              let badgeText = past ? "Lewat" : "Mendatang";
+              if (status === "completed") { badgeBg = "#D1FAE5"; badgeColor = "#059669"; badgeText = "Selesai"; }
+              else if (status === "no_show") { badgeBg = "#FEE2E2"; badgeColor = "#991B1B"; badgeText = "Tidak Hadir"; }
+              else if (status === "cancelled") { badgeBg = "#E5E7EB"; badgeColor = "#6B7280"; badgeText = "Dibatalkan"; }
               return (
                 <li
                   key={s.id}
                   className="flex items-center justify-between gap-3 rounded-xl px-4 py-3"
-                  style={{ background: "#faf8f3", opacity: past ? 0.65 : 1 }}
+                  style={{ background: "#faf8f3", opacity: past && status !== "completed" && status !== "no_show" ? 0.65 : 1 }}
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium" style={{ color: "#1A1A1A" }}>
+                    <p className="text-sm font-medium flex items-center gap-2" style={{ color: "#1A1A1A" }}>
                       {d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                      {isRepeat && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#92400E" }}>
+                          Ulangan
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "#888" }}>
                       {d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB · {s.room}
@@ -130,12 +148,9 @@ export default function JadwalSaya() {
                   </div>
                   <span
                     className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full shrink-0"
-                    style={{
-                      background: past ? "#E5E7EB" : "#D1FAE5",
-                      color: past ? "#6B7280" : "#059669",
-                    }}
+                    style={{ background: badgeBg, color: badgeColor }}
                   >
-                    {past ? "Lewat" : "Mendatang"}
+                    {badgeText}
                   </span>
                 </li>
               );

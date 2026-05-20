@@ -6,6 +6,8 @@ import { useAuth } from "@/lib/auth-client";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Calendar, MapPin, Clock, ClipboardList, CheckCircle2, History, ChevronRight, UserX, RotateCcw } from "lucide-react";
 import type { Schedule, User as UserType, Assessment } from "@shared/schema";
 import { getMahasiswaPhotoUrl } from "@/lib/mahasiswa-photo";
@@ -31,6 +33,24 @@ export default function JadwalUjianMengaji() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [filter, setFilter] = useState<Filter>("semua");
+  // Modal "Tidak Hadir" — instruktur juga bisa sekaligus reschedule.
+  const [noShowDialog, setNoShowDialog] = useState<{ schedule: Schedule; studentName: string } | null>(null);
+  const [reschedule, setReschedule] = useState(true);
+  const [rescheduleAt, setRescheduleAt] = useState("");
+  const [rescheduleRoom, setRescheduleRoom] = useState("");
+
+  const openNoShow = (schedule: Schedule, studentName: string) => {
+    // Default: +3 hari, jam yang sama dgn sesi ini, ruang sama
+    const base = new Date(schedule.date);
+    const next = new Date(base);
+    next.setDate(next.getDate() + 3);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const local = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}T${pad(next.getHours())}:${pad(next.getMinutes())}`;
+    setRescheduleAt(local);
+    setRescheduleRoom(schedule.room);
+    setReschedule(true);
+    setNoShowDialog({ schedule, studentName });
+  };
 
   const { data: schedules, isLoading } = useQuery<Schedule[]>({
     queryKey: ["/api/schedules", `?instructorId=${user?.id}`],
@@ -45,12 +65,23 @@ export default function JadwalUjianMengaji() {
   });
 
   const markNoShow = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("PATCH", `/api/schedules/${id}`, { status: "no_show" });
+    mutationFn: async (args: { id: string; rescheduleAt?: string; rescheduleRoom?: string }) => {
+      const body: any = { status: "no_show" };
+      if (args.rescheduleAt) {
+        body.rescheduleAt = new Date(args.rescheduleAt).toISOString();
+        if (args.rescheduleRoom) body.rescheduleRoom = args.rescheduleRoom;
+      }
+      await apiRequest("PATCH", `/api/schedules/${args.id}`, body);
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["/api/schedules"] });
-      toast({ title: "Ditandai tidak hadir", description: "Status sesi diperbarui." });
+      toast({
+        title: "Ditandai tidak hadir",
+        description: vars.rescheduleAt
+          ? "Jadwal ulang dibuat & mahasiswa diberi notifikasi."
+          : "Status sesi diperbarui.",
+      });
+      setNoShowDialog(null);
     },
     onError: () => toast({ title: "Gagal", description: "Tidak dapat mengubah status sesi", variant: "destructive" }),
   });
@@ -332,9 +363,7 @@ export default function JadwalUjianMengaji() {
                       <button
                         type="button"
                         data-testid={`btn-no-show-${s.id}`}
-                        onClick={() => {
-                          if (confirm(`Tandai ${student?.name ?? "mahasiswa"} tidak hadir?`)) markNoShow.mutate(s.id);
-                        }}
+                        onClick={() => openNoShow(s as Schedule, student?.name ?? "Mahasiswa")}
                         disabled={markNoShow.isPending}
                         className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors hover:bg-red-50"
                         style={{ color: "#B91C1C", borderColor: "#FCA5A5" }}
@@ -355,6 +384,104 @@ export default function JadwalUjianMengaji() {
           </div>
         </section>
       ))}
+
+      {/* === Dialog: Tandai Tidak Hadir & Jadwal Ulang === */}
+      <Dialog open={!!noShowDialog} onOpenChange={(open) => !open && setNoShowDialog(null)}>
+        <DialogContent className="rounded-2xl" style={{ background: C.cream, borderColor: C.taupe }}>
+          <DialogHeader>
+            <DialogTitle className="font-display italic text-2xl flex items-center gap-2" style={{ color: "#B91C1C" }}>
+              <UserX className="w-6 h-6" /> Tandai Tidak Hadir
+            </DialogTitle>
+            <DialogDescription className="text-sm" style={{ color: C.emeraldSoft }}>
+              {noShowDialog && (
+                <>
+                  Sesi <span className="font-semibold">{noShowDialog.studentName}</span> pada{" "}
+                  <span className="font-semibold">
+                    {new Date(noShowDialog.schedule.date).toLocaleString("id-ID", {
+                      weekday: "long", day: "numeric", month: "long",
+                      hour: "2-digit", minute: "2-digit",
+                    })}
+                  </span>{" "}
+                  akan ditandai tidak hadir.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-xl border p-4 mt-2" style={{ background: "#FFFBEB", borderColor: "#FBBF24" }}>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                data-testid="checkbox-reschedule-noshow"
+                checked={reschedule}
+                onChange={(e) => setReschedule(e.target.checked)}
+                className="mt-1 w-4 h-4 accent-amber-600"
+              />
+              <div className="flex-1">
+                <p className="text-sm font-bold" style={{ color: "#92400E" }}>
+                  Jadwalkan ulang sekarang
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "#92400E" }}>
+                  Mahasiswa langsung dapat notifikasi sesi pengganti. Tanpa ini, mahasiswa harus menunggu dijadwalkan ulang manual.
+                </p>
+              </div>
+            </label>
+
+            {reschedule && (
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 pl-7">
+                <div>
+                  <label className="text-xs font-semibold flex items-center gap-1 mb-1.5" style={{ color: "#92400E" }}>
+                    <Calendar className="w-3.5 h-3.5" /> Tanggal & Waktu
+                  </label>
+                  <input
+                    type="datetime-local"
+                    data-testid="input-noshow-reschedule-at"
+                    value={rescheduleAt}
+                    onChange={(e) => setRescheduleAt(e.target.value)}
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                    style={{ borderColor: "#FBBF24", background: "#fff" }}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold flex items-center gap-1 mb-1.5" style={{ color: "#92400E" }}>
+                    <MapPin className="w-3.5 h-3.5" /> Ruang
+                  </label>
+                  <input
+                    type="text"
+                    data-testid="input-noshow-reschedule-room"
+                    value={rescheduleRoom}
+                    onChange={(e) => setRescheduleRoom(e.target.value)}
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                    style={{ borderColor: "#FBBF24", background: "#fff" }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setNoShowDialog(null)} className="rounded-xl" style={{ borderColor: C.taupe }}>
+              Batal
+            </Button>
+            <Button
+              data-testid="btn-confirm-no-show"
+              onClick={() => {
+                if (!noShowDialog) return;
+                markNoShow.mutate({
+                  id: noShowDialog.schedule.id,
+                  rescheduleAt: reschedule && rescheduleAt ? rescheduleAt : undefined,
+                  rescheduleRoom: reschedule ? rescheduleRoom : undefined,
+                });
+              }}
+              disabled={markNoShow.isPending || (reschedule && !rescheduleAt)}
+              className="rounded-xl"
+              style={{ background: "#B91C1C", color: "#fff" }}
+            >
+              {markNoShow.isPending ? "Menyimpan..." : reschedule ? "Tandai & Jadwalkan Ulang" : "Tandai Tidak Hadir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

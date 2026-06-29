@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3015",
+    "dev": "next dev -p 3014",
     "build": "next build",
-    "start": "next start -p 3015",
+    "start": "next start -p 3014",
     "lint": "eslint",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx --env-file=.env src/lib/db/seed.ts",
+    "db:seed:admin": "tsx --env-file=.env src/lib/db/seed-admin.ts",
     "test:api": "tsx src/__tests__/api-integration.test.ts"
   },
   "dependencies": {

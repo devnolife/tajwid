@@ -160,6 +160,53 @@ npm run dev
 
 Buka [http://localhost:3000](http://localhost:3000) 🎉
 
+## 🐳 Menjalankan dengan Docker
+
+Project sudah dilengkapi `Dockerfile` (Next.js standalone) dan `docker-compose.yml` (Next.js + PostgreSQL 16).
+
+### 1. Siapkan environment
+
+```bash
+cp .env.example .env
+# (opsional) ubah POSTGRES_PORT / APP_PORT bila bentrok
+# generate secret:  openssl rand -base64 32  -> AUTH_SECRET & NEXTAUTH_SECRET
+```
+
+### 2. Jalankan stack
+
+```bash
+docker compose up -d --build
+```
+
+Service yang berjalan:
+
+| Service          | Default Port | Keterangan                                    |
+|------------------|--------------|-----------------------------------------------|
+| `postgres`       | `5434` host → `5432` container | PostgreSQL 16, volume persisten |
+| `app` (Next.js)  | `3015` (atau `APP_PORT`)       | Next.js production (standalone) |
+
+### 3. Migrate schema & seed admin (sekali setup)
+
+```bash
+# push schema Drizzle ke database (dari host, butuh npm install)
+npm run db:push
+
+# atau via container app:
+docker compose exec app npx drizzle-kit push
+
+# buat akun admin (idempotent — aman dijalankan berulang)
+docker compose exec app npx tsx src/lib/db/seed-admin.ts
+```
+
+Akses aplikasi di `http://localhost:${APP_PORT:-3015}`.
+
+### Stop / reset
+
+```bash
+docker compose down              # stop, data tetap
+docker compose down -v           # stop + hapus data postgres
+```
+
 ## 🔐 Demo Accounts
 
 Setelah menjalankan `npm run db:seed`, gunakan akun berikut:
@@ -201,6 +248,7 @@ Passing Score = 70 (configurable via Admin Settings)
 | `npm run lint` | Jalankan ESLint |
 | `npm run db:push` | Push schema ke database |
 | `npm run db:seed` | Populate data demo |
+| `npm run db:seed:admin` | Buat / update akun admin (idempotent, baca `ADMIN_*` env) |
 
 ## 🔒 Role-Based Access
 

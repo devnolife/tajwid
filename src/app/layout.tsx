@@ -25,8 +25,8 @@ const amiri = Amiri({
 });
 
 export const metadata: Metadata = {
-  title: "TajwidKu - Platform Penilaian Tajwid",
-  description: "Sistem penilaian kemampuan tajwid Al-Quran mahasiswa",
+  title: "TajwidKu - Fakultas Teknik Universitas Muhammadiyah Makassar",
+  description: "Sistem penilaian kemampuan tajwid Al-Quran mahasiswa Fakultas Teknik Unismuh Makassar",
 };
 
 export const viewport = {

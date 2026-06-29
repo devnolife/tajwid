@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tajwid-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tajwid}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tajwid_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-mengaji}
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - tajwid_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tajwid} -d ${POSTGRES_DB:-mengaji}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tajwid-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tajwid}:${POSTGRES_PASSWORD:-tajwid_secret}@postgres:5432/${POSTGRES_DB:-mengaji}
+      AUTH_SECRET: ${AUTH_SECRET:-change-me-please-use-openssl-rand-base64-32}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-me-please-use-openssl-rand-base64-32}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://tajwidku.teknik.unismuh.ac.id}
+      AUTH_TRUST_HOST: "true"
+      CAMPUS_GRAPHQL_URL: ${CAMPUS_GRAPHQL_URL:-https://sicekcok.if.unismuh.ac.id/graphql}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrator Sistem}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@tajwid.local}
+    ports:
+      - "${APP_PORT:-3015}:3015"
+
+volumes:
+  tajwid_postgres_data:
+    driver: local

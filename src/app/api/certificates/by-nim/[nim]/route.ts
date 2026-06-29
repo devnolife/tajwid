@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
-import { storage } from "@/lib/db/storage";
+import { db } from "@/lib/db";
+import { certificates } from "@shared/schema";
+import { eq, desc } from "drizzle-orm";
 
 /**
- * Public certificate verification endpoint.
+ * Public lookup endpoint: GET /api/certificates/by-nim/{nim}
  *
- * Used by:
- *   - The TajwidKu verify page (browser, same origin)
- *   - External integrations such as `simtekmu` (server-to-server) to
- *     auto-verify the "quran_reading_certificate" KKP requirement.
+ * Returns the most recently issued certificate for the given NIM
+ * (latest `issuedAt`). Used by integrations such as `simtekmu` to
+ * auto-resolve a student's Qur'an-reading certificate without
+ * requiring the student to type a certificate number.
  *
- * Permissive CORS headers are added so that, if a future integration calls
- * this endpoint from a browser on a different origin, it works without a
- * server-side proxy. Endpoint is read-only and exposes only data already
- * intended to be public (printed on the certificate itself).
+ * Public on purpose — only fields already printed on the physical
+ * certificate are returned (no internal IDs or scores breakdown).
  */
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -26,15 +26,30 @@ export async function OPTIONS() {
 
 export async function GET(
   _request: Request,
-  { params }: { params: Promise<{ number: string }> }
+  { params }: { params: Promise<{ nim: string }> }
 ) {
-  const { number } = await params;
+  const { nim } = await params;
+  const trimmed = (nim || "").trim();
+
+  if (!trimmed) {
+    return NextResponse.json(
+      { valid: false, message: "NIM wajib diisi" },
+      { status: 400, headers: CORS_HEADERS }
+    );
+  }
 
   try {
-    const cert = await storage.getCertificateByNumber(number);
+    const rows = await db
+      .select()
+      .from(certificates)
+      .where(eq(certificates.studentNim, trimmed))
+      .orderBy(desc(certificates.issuedAt))
+      .limit(1);
+
+    const cert = rows[0];
     if (!cert) {
       return NextResponse.json(
-        { valid: false, message: "Sertifikat tidak ditemukan" },
+        { valid: false, message: "Sertifikat untuk NIM ini tidak ditemukan" },
         { status: 404, headers: CORS_HEADERS }
       );
     }

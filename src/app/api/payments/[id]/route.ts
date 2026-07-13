@@ -1,50 +1,27 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { storage } from "@/lib/db/storage";
-import { notify, notifyTemplates } from "@/lib/notify";
+import { getIdentity } from "@/lib/api/authz";
+import { parseJson, toErrorResponse } from "@/lib/api/http";
+import { paymentActionSchema } from "@/lib/api/schemas";
+import { transitionPaymentWorkflow } from "@/lib/services/payment-service";
+import { paymentWorkflowDependencies } from "@/lib/services/payment-db";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id } = await params;
-
   try {
-    const body = await request.json();
-    if (body.dueDate && typeof body.dueDate === "string") {
-      body.dueDate = new Date(body.dueDate);
-    }
-    if (body.paidAt && typeof body.paidAt === "string") {
-      body.paidAt = new Date(body.paidAt);
-    }
-
-    const before = await storage.getPayment(id);
-    const payment = await storage.updatePayment(id, body);
-    if (!payment) {
-      return NextResponse.json({ message: "Not found" }, { status: 404 });
-    }
-
-    // Notifikasi: mahasiswa upload bukti → notif ke semua admin
-    if (before?.status !== "menunggu_verifikasi" && payment.status === "menunggu_verifikasi") {
-      const student = await storage.getUser(payment.studentId);
-      const admins = await storage.getUsersByRole("admin");
-      for (const admin of admins) {
-        await notify(notifyTemplates.paymentNeedsVerification(admin.id, student?.name || "Mahasiswa"));
-      }
-    }
-
-    // Notifikasi: admin verifikasi → notif ke mahasiswa
-    if (before && before.status !== payment.status && (payment.status === "lunas" || payment.status === "ditolak")) {
-      await notify(notifyTemplates.paymentVerified(payment.studentId, payment.status));
-    }
-
-    return NextResponse.json(payment);
-  } catch (e: any) {
-    return NextResponse.json({ message: e.message }, { status: 400 });
+    const identity = getIdentity(await auth());
+    const { id } = await params;
+    const input = await parseJson(request, paymentActionSchema);
+    const result = await transitionPaymentWorkflow(
+      identity,
+      id,
+      input,
+      paymentWorkflowDependencies,
+    );
+    return NextResponse.json(result.payment);
+  } catch (error) {
+    return toErrorResponse(error);
   }
 }

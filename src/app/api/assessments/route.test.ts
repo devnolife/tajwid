@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getAssessmentsByStudent: vi.fn(),
   getAssessmentsByInstructor: vi.fn(),
   getAssessmentsByInstructorAndStudent: vi.fn(),
+  createAssessmentWorkflow: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ auth: mocks.auth }));
@@ -22,8 +23,14 @@ vi.mock("@/lib/notify", () => ({
   notify: vi.fn(),
   notifyTemplates: {},
 }));
+vi.mock("@/lib/services/assessment-service", () => ({
+  createAssessmentWorkflow: mocks.createAssessmentWorkflow,
+}));
+vi.mock("@/lib/services/assessment-db", () => ({
+  assessmentWorkflowDependencies: { transaction: vi.fn() },
+}));
 
-import { GET } from "@/app/api/assessments/route";
+import { GET, POST } from "@/app/api/assessments/route";
 
 function session(id: string, role: "mahasiswa" | "instruktur" | "admin") {
   return { user: { id, role } };
@@ -36,6 +43,11 @@ describe("assessment collection authorization", () => {
     mocks.getAssessmentsByStudent.mockResolvedValue([]);
     mocks.getAssessmentsByInstructor.mockResolvedValue([]);
     mocks.getAssessmentsByInstructorAndStudent.mockResolvedValue([]);
+    mocks.createAssessmentWorkflow.mockResolvedValue({
+      id: "assessment-1",
+      totalScore: 75,
+      passed: true,
+    });
   });
 
   it("does not let a student read another student's assessment", async () => {
@@ -87,5 +99,69 @@ describe("assessment collection authorization", () => {
     );
     expect(response.status).toBe(200);
     expect(mocks.getAllAssessments).toHaveBeenCalledOnce();
+  });
+
+  it("passes only strict score input and session identity to the workflow", async () => {
+    mocks.auth.mockResolvedValue(session("instructor-1", "instruktur"));
+    const body = {
+      scheduleId: "b3919af3-f943-4cfa-856d-d53fdfdf7a8e",
+      tajwid: 80,
+      kelancaran: 70,
+      makhorijulHuruf: 60,
+      adab: 90,
+      notes: "Bacaan baik",
+    };
+
+    const response = await POST(
+      new Request("http://localhost/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(mocks.createAssessmentWorkflow).toHaveBeenCalledWith(
+      { id: "instructor-1", role: "instruktur" },
+      body,
+      expect.any(Object),
+    );
+
+    const forged = await POST(
+      new Request("http://localhost/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...body,
+          studentId: "forged-student",
+          instructorId: "forged-instructor",
+          totalScore: 100,
+          passed: true,
+        }),
+      }),
+    );
+    expect(forged.status).toBe(400);
+    expect(mocks.createAssessmentWorkflow).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects assessment creation by a student", async () => {
+    mocks.auth.mockResolvedValue(session("student-1", "mahasiswa"));
+
+    const response = await POST(
+      new Request("http://localhost/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduleId: "b3919af3-f943-4cfa-856d-d53fdfdf7a8e",
+          tajwid: 80,
+          kelancaran: 70,
+          makhorijulHuruf: 60,
+          adab: 90,
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(mocks.createAssessmentWorkflow).not.toHaveBeenCalled();
   });
 });

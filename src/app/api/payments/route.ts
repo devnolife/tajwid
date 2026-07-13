@@ -2,8 +2,14 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { storage } from "@/lib/db/storage";
 import { notify, notifyTemplates } from "@/lib/notify";
-import { getIdentity, resolveStudentResourceScope } from "@/lib/api/authz";
-import { toErrorResponse } from "@/lib/api/http";
+import {
+  ApiError,
+  getIdentity,
+  requireRole,
+  resolveStudentResourceScope,
+} from "@/lib/api/authz";
+import { parseJson, toErrorResponse } from "@/lib/api/http";
+import { paymentCreateSchema } from "@/lib/api/schemas";
 
 export async function GET(request: Request) {
   try {
@@ -24,28 +30,39 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-  }
-  if ((session.user as any).role !== "admin") {
-    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-  }
-
   try {
-    const body = await request.json();
-    if (body.dueDate && typeof body.dueDate === "string") {
-      body.dueDate = new Date(body.dueDate);
+    const identity = requireRole(getIdentity(await auth()), "admin");
+    const input = await parseJson(request, paymentCreateSchema);
+    const student = await storage.getUser(input.studentId);
+    if (!student || student.role !== "mahasiswa") {
+      throw new ApiError(400, "Mahasiswa tidak valid", "INVALID_INPUT");
     }
-    if (body.paidAt && typeof body.paidAt === "string") {
-      body.paidAt = new Date(body.paidAt);
-    }
-    const payment = await storage.createPayment(body);
-    if (payment.studentId) {
-      await notify(notifyTemplates.paymentCreated(payment.studentId, payment.amount, payment.id));
-    }
-    return NextResponse.json(payment);
-  } catch (e: any) {
-    return NextResponse.json({ message: e.message }, { status: 400 });
+
+    const settings = await storage.getSettings();
+    const academicYear = settings?.academicYear ?? "2025/2026";
+    const payment = await storage.createPayment({
+      ...input,
+      dueDate: new Date(input.dueDate),
+      academicYear,
+      billingKey: "certificate",
+      status: "belum_bayar",
+    });
+    await storage.createAuditEvent({
+      actorId: identity.id,
+      action: "payment.created",
+      entityType: "payment",
+      entityId: payment.id,
+      details: { studentId: payment.studentId },
+    });
+    await notify(
+      notifyTemplates.paymentCreated(
+        payment.studentId,
+        payment.amount,
+        payment.id,
+      ),
+    );
+    return NextResponse.json(payment, { status: 201 });
+  } catch (error) {
+    return toErrorResponse(error);
   }
 }

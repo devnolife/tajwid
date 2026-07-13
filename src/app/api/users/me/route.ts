@@ -1,42 +1,34 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { storage } from "@/lib/db/storage";
+import { ApiError, getIdentity } from "@/lib/api/authz";
+import { toPublicUser } from "@/lib/api/dto";
+import { parseJson, toErrorResponse } from "@/lib/api/http";
+import { userUpdateSchema } from "@/lib/api/schemas";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
+  try {
+    const identity = getIdentity(await auth());
+    const user = await storage.getUser(identity.id);
+    if (!user) {
+      throw new ApiError(404, "User not found", "NOT_FOUND");
+    }
+    return NextResponse.json(toPublicUser(user));
+  } catch (error) {
+    return toErrorResponse(error);
   }
-  const id = (session.user as any).id;
-  const user = await storage.getUser(id);
-  if (!user) {
-    return NextResponse.json({ message: "User not found" }, { status: 404 });
-  }
-  const { password, ...sanitized } = user;
-  return NextResponse.json(sanitized);
 }
 
 export async function PATCH(request: Request) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-  }
-  const id = (session.user as any).id;
-
   try {
-    const body = await request.json();
-    // Whitelist fields user can edit on themselves
-    const allowed: Record<string, unknown> = {};
-    for (const k of ["name", "email", "phone", "faculty", "program", "specialization"]) {
-      if (k in body) allowed[k] = body[k];
-    }
-    const user = await storage.updateUser(id, allowed as any);
+    const identity = getIdentity(await auth());
+    const input = await parseJson(request, userUpdateSchema);
+    const user = await storage.updateUser(identity.id, input);
     if (!user) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+      throw new ApiError(404, "User not found", "NOT_FOUND");
     }
-    const { password, ...sanitized } = user;
-    return NextResponse.json(sanitized);
-  } catch (e: any) {
-    return NextResponse.json({ message: e.message }, { status: 400 });
+    return NextResponse.json(toPublicUser(user));
+  } catch (error) {
+    return toErrorResponse(error);
   }
 }

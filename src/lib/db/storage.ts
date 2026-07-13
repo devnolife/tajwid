@@ -6,7 +6,8 @@ import {
   type Settings, type InsertSettings,
   type Certificate, type InsertCertificate,
   type Notification, type InsertNotification,
-  users, payments, schedules, assessments, settings, certificates, notifications,
+  type AuditEvent, type InsertAuditEvent,
+  users, payments, schedules, assessments, settings, certificates, notifications, auditEvents,
 } from "@shared/schema";
 import { db } from "@/lib/db";
 import { eq, and, desc } from "drizzle-orm";
@@ -18,7 +19,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, data: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: string): Promise<void>;
-  getUsersByRole(role: string): Promise<User[]>;
+  getUsersByRole(role: User["role"]): Promise<User[]>;
 
   getPayment(id: string): Promise<Payment | undefined>;
   getPaymentsByStudent(studentId: string): Promise<Payment[]>;
@@ -55,6 +56,8 @@ export interface IStorage {
   markNotificationRead(id: string, userId: string): Promise<void>;
   markAllNotificationsRead(userId: string): Promise<void>;
   deleteNotification(id: string, userId: string): Promise<void>;
+
+  createAuditEvent(event: InsertAuditEvent): Promise<AuditEvent>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -79,7 +82,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: string, data: Partial<InsertUser>): Promise<User | undefined> {
-    const [updated] = await db.update(users).set(data).where(eq(users.id, id)).returning();
+    const [updated] = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, id)).returning();
     return updated;
   }
 
@@ -87,8 +90,8 @@ export class DatabaseStorage implements IStorage {
     await db.delete(users).where(eq(users.id, id));
   }
 
-  async getUsersByRole(role: string): Promise<User[]> {
-    return db.select().from(users).where(eq(users.role, role as any));
+  async getUsersByRole(role: User["role"]): Promise<User[]> {
+    return db.select().from(users).where(eq(users.role, role)).orderBy(users.name);
   }
 
   async getPayment(id: string): Promise<Payment | undefined> {
@@ -97,11 +100,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPaymentsByStudent(studentId: string): Promise<Payment[]> {
-    return db.select().from(payments).where(eq(payments.studentId, studentId));
+    return db.select().from(payments).where(eq(payments.studentId, studentId)).orderBy(desc(payments.createdAt));
   }
 
   async getAllPayments(): Promise<Payment[]> {
-    return db.select().from(payments);
+    return db.select().from(payments).orderBy(desc(payments.createdAt));
   }
 
   async createPayment(payment: InsertPayment): Promise<Payment> {
@@ -110,7 +113,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updatePayment(id: string, data: Partial<InsertPayment>): Promise<Payment | undefined> {
-    const [updated] = await db.update(payments).set(data).where(eq(payments.id, id)).returning();
+    const [updated] = await db.update(payments).set({ ...data, updatedAt: new Date() }).where(eq(payments.id, id)).returning();
     return updated;
   }
 
@@ -120,15 +123,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSchedulesByStudent(studentId: string): Promise<Schedule[]> {
-    return db.select().from(schedules).where(eq(schedules.studentId, studentId));
+    return db.select().from(schedules).where(eq(schedules.studentId, studentId)).orderBy(desc(schedules.date));
   }
 
   async getSchedulesByInstructor(instructorId: string): Promise<Schedule[]> {
-    return db.select().from(schedules).where(eq(schedules.instructorId, instructorId));
+    return db.select().from(schedules).where(eq(schedules.instructorId, instructorId)).orderBy(desc(schedules.date));
   }
 
   async getAllSchedules(): Promise<Schedule[]> {
-    return db.select().from(schedules);
+    return db.select().from(schedules).orderBy(desc(schedules.date));
   }
 
   async createSchedule(schedule: InsertSchedule): Promise<Schedule> {
@@ -137,7 +140,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateSchedule(id: string, data: Partial<InsertSchedule>): Promise<Schedule | undefined> {
-    const [updated] = await db.update(schedules).set(data).where(eq(schedules.id, id)).returning();
+    const [updated] = await db.update(schedules).set({ ...data, updatedAt: new Date() }).where(eq(schedules.id, id)).returning();
     return updated;
   }
 
@@ -169,11 +172,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAssessmentsByInstructor(instructorId: string): Promise<Assessment[]> {
-    return db.select().from(assessments).where(eq(assessments.instructorId, instructorId));
+    return db.select().from(assessments).where(eq(assessments.instructorId, instructorId)).orderBy(desc(assessments.assessedAt));
   }
 
   async getAllAssessments(): Promise<Assessment[]> {
-    return db.select().from(assessments);
+    return db.select().from(assessments).orderBy(desc(assessments.assessedAt));
   }
 
   async createAssessment(assessment: InsertAssessment): Promise<Assessment> {
@@ -182,7 +185,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateAssessment(id: string, data: Partial<InsertAssessment>): Promise<Assessment | undefined> {
-    const [updated] = await db.update(assessments).set(data).where(eq(assessments.id, id)).returning();
+    const [updated] = await db.update(assessments).set({ ...data, updatedAt: new Date() }).where(eq(assessments.id, id)).returning();
     return updated;
   }
 
@@ -240,6 +243,11 @@ export class DatabaseStorage implements IStorage {
 
   async deleteNotification(id: string, userId: string): Promise<void> {
     await db.delete(notifications).where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
+  }
+
+  async createAuditEvent(event: InsertAuditEvent): Promise<AuditEvent> {
+    const [created] = await db.insert(auditEvents).values(event).returning();
+    return created;
   }
 }
 

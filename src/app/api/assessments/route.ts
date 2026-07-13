@@ -2,29 +2,44 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { storage } from "@/lib/db/storage";
 import { notify, notifyTemplates } from "@/lib/notify";
+import { getIdentity, resolveAssignedResourceScope } from "@/lib/api/authz";
+import { toErrorResponse } from "@/lib/api/http";
 
 export async function GET(request: Request) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
+  try {
+    const identity = getIdentity(await auth());
+    const { searchParams } = new URL(request.url);
+    const scope = resolveAssignedResourceScope(
+      identity,
+      searchParams.get("studentId"),
+      searchParams.get("instructorId"),
+    );
+
+    if ("all" in scope) {
+      return NextResponse.json(await storage.getAllAssessments());
+    }
+    if (scope.studentId && scope.instructorId) {
+      return NextResponse.json(
+        await storage.getAssessmentsByInstructorAndStudent(
+          scope.instructorId,
+          scope.studentId,
+        ),
+      );
+    }
+    if (scope.studentId) {
+      return NextResponse.json(
+        await storage.getAssessmentsByStudent(scope.studentId),
+      );
+    }
+    if (!scope.instructorId) {
+      throw new Error("Invalid assessment scope");
+    }
+    return NextResponse.json(
+      await storage.getAssessmentsByInstructor(scope.instructorId),
+    );
+  } catch (error) {
+    return toErrorResponse(error);
   }
-
-  const { searchParams } = new URL(request.url);
-  const studentId = searchParams.get("studentId");
-  const instructorId = searchParams.get("instructorId");
-
-  if (studentId) {
-    const assessments = await storage.getAssessmentsByStudent(studentId);
-    return NextResponse.json(assessments);
-  }
-
-  if (instructorId) {
-    const assessments = await storage.getAssessmentsByInstructor(instructorId);
-    return NextResponse.json(assessments);
-  }
-
-  const assessments = await storage.getAllAssessments();
-  return NextResponse.json(assessments);
 }
 
 export async function POST(request: Request) {

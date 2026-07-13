@@ -30,6 +30,7 @@ export interface IStorage {
   getSchedule(id: string): Promise<Schedule | undefined>;
   getSchedulesByStudent(studentId: string): Promise<Schedule[]>;
   getSchedulesByInstructor(instructorId: string): Promise<Schedule[]>;
+  getSchedulesByInstructorAndStudent(instructorId: string, studentId: string): Promise<Schedule[]>;
   getAllSchedules(): Promise<Schedule[]>;
   createSchedule(schedule: InsertSchedule): Promise<Schedule>;
   updateSchedule(id: string, data: Partial<InsertSchedule>): Promise<Schedule | undefined>;
@@ -39,6 +40,7 @@ export interface IStorage {
   getAssessmentByStudent(studentId: string): Promise<Assessment | undefined>;
   getAssessmentsByStudent(studentId: string): Promise<Assessment[]>;
   getAssessmentsByInstructor(instructorId: string): Promise<Assessment[]>;
+  getAssessmentsByInstructorAndStudent(instructorId: string, studentId: string): Promise<Assessment[]>;
   getAllAssessments(): Promise<Assessment[]>;
   createAssessment(assessment: InsertAssessment): Promise<Assessment>;
   updateAssessment(id: string, data: Partial<InsertAssessment>): Promise<Assessment | undefined>;
@@ -130,6 +132,14 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(schedules).where(eq(schedules.instructorId, instructorId)).orderBy(desc(schedules.date));
   }
 
+  async getSchedulesByInstructorAndStudent(instructorId: string, studentId: string): Promise<Schedule[]> {
+    return db
+      .select()
+      .from(schedules)
+      .where(and(eq(schedules.instructorId, instructorId), eq(schedules.studentId, studentId)))
+      .orderBy(desc(schedules.date));
+  }
+
   async getAllSchedules(): Promise<Schedule[]> {
     return db.select().from(schedules).orderBy(desc(schedules.date));
   }
@@ -173,6 +183,14 @@ export class DatabaseStorage implements IStorage {
 
   async getAssessmentsByInstructor(instructorId: string): Promise<Assessment[]> {
     return db.select().from(assessments).where(eq(assessments.instructorId, instructorId)).orderBy(desc(assessments.assessedAt));
+  }
+
+  async getAssessmentsByInstructorAndStudent(instructorId: string, studentId: string): Promise<Assessment[]> {
+    return db
+      .select()
+      .from(assessments)
+      .where(and(eq(assessments.instructorId, instructorId), eq(assessments.studentId, studentId)))
+      .orderBy(desc(assessments.assessedAt));
   }
 
   async getAllAssessments(): Promise<Assessment[]> {

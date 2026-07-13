@@ -5,6 +5,8 @@ import {
   assertStudentScope,
   getIdentity,
   requireRole,
+  resolveAssignedResourceScope,
+  resolveStudentResourceScope,
 } from "@/lib/api/authz";
 
 describe("API authorization policy", () => {
@@ -36,5 +38,40 @@ describe("API authorization policy", () => {
     expect(() => assertInstructorScope(admin, "instructor-2")).not.toThrow();
     expect(() => assertInstructorScope(instructor, "instructor-2")).toThrow("Forbidden");
     expect(() => assertInstructorScope(student, "instructor-1")).toThrow("Forbidden");
+  });
+
+  it("scopes student-only resources to their owner while preserving admin filters", () => {
+    expect(resolveStudentResourceScope(student, null)).toEqual({
+      studentId: "student-1",
+    });
+    expect(resolveStudentResourceScope(admin, "student-2")).toEqual({
+      studentId: "student-2",
+    });
+    expect(resolveStudentResourceScope(admin, null)).toEqual({ all: true });
+    expect(() => resolveStudentResourceScope(student, "student-2")).toThrow(
+      "Forbidden",
+    );
+    expect(() => resolveStudentResourceScope(instructor, null)).toThrow(
+      "Forbidden",
+    );
+  });
+
+  it("scopes assigned resources to the current student or instructor", () => {
+    expect(resolveAssignedResourceScope(student, null, null)).toEqual({
+      studentId: "student-1",
+    });
+    expect(resolveAssignedResourceScope(instructor, "student-2", null)).toEqual({
+      studentId: "student-2",
+      instructorId: "instructor-1",
+    });
+    expect(resolveAssignedResourceScope(admin, null, "instructor-2")).toEqual({
+      instructorId: "instructor-2",
+    });
+    expect(() =>
+      resolveAssignedResourceScope(instructor, null, "instructor-2"),
+    ).toThrow("Forbidden");
+    expect(() =>
+      resolveAssignedResourceScope(student, "student-2", null),
+    ).toThrow("Forbidden");
   });
 });

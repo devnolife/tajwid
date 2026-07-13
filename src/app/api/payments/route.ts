@@ -2,23 +2,25 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { storage } from "@/lib/db/storage";
 import { notify, notifyTemplates } from "@/lib/notify";
+import { getIdentity, resolveStudentResourceScope } from "@/lib/api/authz";
+import { toErrorResponse } from "@/lib/api/http";
 
 export async function GET(request: Request) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
+  try {
+    const identity = getIdentity(await auth());
+    const requestedStudentId = new URL(request.url).searchParams.get("studentId");
+    const scope = resolveStudentResourceScope(identity, requestedStudentId);
+    if ("all" in scope) {
+      return NextResponse.json(await storage.getAllPayments());
+    }
+    if (!scope.studentId) {
+      throw new Error("Invalid payment scope");
+    }
+    const paymentList = await storage.getPaymentsByStudent(scope.studentId);
+    return NextResponse.json(paymentList);
+  } catch (error) {
+    return toErrorResponse(error);
   }
-
-  const { searchParams } = new URL(request.url);
-  const studentId = searchParams.get("studentId");
-
-  if (studentId) {
-    const payments = await storage.getPaymentsByStudent(studentId);
-    return NextResponse.json(payments);
-  }
-
-  const payments = await storage.getAllPayments();
-  return NextResponse.json(payments);
 }
 
 export async function POST(request: Request) {

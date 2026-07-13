@@ -70,3 +70,53 @@ export function assertInstructorScope(
     throw new ApiError(403, "Forbidden", "FORBIDDEN");
   }
 }
+
+export type ResourceListScope =
+  | { all: true }
+  | { studentId: string; instructorId?: string }
+  | { instructorId: string; studentId?: string };
+
+export function resolveStudentResourceScope(
+  identity: Identity,
+  requestedStudentId: string | null,
+): ResourceListScope {
+  if (identity.role === "admin") {
+    return requestedStudentId ? { studentId: requestedStudentId } : { all: true };
+  }
+  if (identity.role !== "mahasiswa") {
+    throw new ApiError(403, "Forbidden", "FORBIDDEN");
+  }
+  if (requestedStudentId && requestedStudentId !== identity.id) {
+    throw new ApiError(403, "Forbidden", "FORBIDDEN");
+  }
+  return { studentId: identity.id };
+}
+
+export function resolveAssignedResourceScope(
+  identity: Identity,
+  requestedStudentId: string | null,
+  requestedInstructorId: string | null,
+): ResourceListScope {
+  if (identity.role === "admin") {
+    if (requestedStudentId) return { studentId: requestedStudentId };
+    if (requestedInstructorId) return { instructorId: requestedInstructorId };
+    return { all: true };
+  }
+
+  if (identity.role === "mahasiswa") {
+    if (requestedStudentId && requestedStudentId !== identity.id) {
+      throw new ApiError(403, "Forbidden", "FORBIDDEN");
+    }
+    if (requestedInstructorId) {
+      throw new ApiError(403, "Forbidden", "FORBIDDEN");
+    }
+    return { studentId: identity.id };
+  }
+
+  if (requestedInstructorId && requestedInstructorId !== identity.id) {
+    throw new ApiError(403, "Forbidden", "FORBIDDEN");
+  }
+  return requestedStudentId
+    ? { instructorId: identity.id, studentId: requestedStudentId }
+    : { instructorId: identity.id };
+}

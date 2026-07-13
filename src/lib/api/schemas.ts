@@ -42,6 +42,7 @@ export const paymentActionSchema = z.discriminatedUnion("action", [
     .strict(),
   z.object({ action: z.literal("approve") }).strict(),
   z.object({ action: z.literal("reject") }).strict(),
+  z.object({ action: z.literal("confirm_cash") }).strict(),
 ]);
 
 export const scheduleCreateSchema = z

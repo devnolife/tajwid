@@ -19,6 +19,7 @@ export interface PaymentTransaction {
       status: Payment["status"];
       proofUrl?: string;
       paidAt: Date | null;
+      method?: "transfer" | "cash";
     },
   ): Promise<Payment>;
   getStudent(id: string): Promise<{ id: string; name: string } | null | undefined>;
@@ -72,6 +73,7 @@ export async function transitionPaymentWorkflow(
       status: transition.status,
       ...(transition.proofUrl ? { proofUrl: transition.proofUrl } : {}),
       paidAt: transition.paidAt,
+      ...(transition.method ? { method: transition.method } : {}),
     });
 
     let certificate: unknown;
@@ -89,11 +91,14 @@ export async function transitionPaymentWorkflow(
         );
       }
     } else {
-      const verifiedStatus = input.action === "approve" ? "lunas" : "ditolak";
+      const verifiedStatus =
+        input.action === "approve" || input.action === "confirm_cash"
+          ? "lunas"
+          : "ditolak";
       await tx.createNotification(
         notifyTemplates.paymentVerified(updated.studentId, verifiedStatus),
       );
-      if (input.action === "approve") {
+      if (verifiedStatus === "lunas") {
         certificate = await tx.issueCertificate(
           updated.studentId,
           identity.id,

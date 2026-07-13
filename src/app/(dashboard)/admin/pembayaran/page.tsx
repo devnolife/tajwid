@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, XCircle, Filter, Loader2, Search, Download } from "lucide-react";
+import { CheckCircle, XCircle, Filter, Loader2, Search, Download, Banknote } from "lucide-react";
 import type { User, Payment } from "@shared/schema";
 import { getMahasiswaPhotoUrl } from "@/lib/mahasiswa-photo";
 import { Pagination, usePagination } from "@/components/pagination";
@@ -152,12 +152,14 @@ export default function PembayaranManagement() {
                       <a href={p.proofUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-medium hover:underline" style={{ color: "#84B179" }}>
                         Lihat Bukti
                       </a>
+                    ) : p.method === "cash" ? (
+                      <span className="text-xs font-medium" style={{ color: "#84B179" }}>Cash</span>
                     ) : (
                       <span className="text-xs" style={{ color: "#bbb" }}>-</span>
                     )}
                   </td>
                   <td className="py-3 px-4">
-                    {(p.status === "menunggu_verifikasi" || p.status === "ditolak") && (
+                    {p.status === "menunggu_verifikasi" && (
                       <div className="flex gap-1">
                         <button
                           data-testid={`verify-payment-${p.id}`}
@@ -168,18 +170,28 @@ export default function PembayaranManagement() {
                         >
                           {updatingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                         </button>
-                        {p.status === "menunggu_verifikasi" && (
-                          <button
-                            data-testid={`reject-payment-${p.id}`}
-                            onClick={() => updateMutation.mutate({ id: p.id, action: "reject" })}
-                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500"
-                            disabled={updatingId === p.id}
-                            title="Tolak"
-                          >
-                            {updatingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                          </button>
-                        )}
+                        <button
+                          data-testid={`reject-payment-${p.id}`}
+                          onClick={() => updateMutation.mutate({ id: p.id, action: "reject" })}
+                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500"
+                          disabled={updatingId === p.id}
+                          title="Tolak"
+                        >
+                          {updatingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                        </button>
                       </div>
+                    )}
+                    {(p.status === "belum_bayar" || p.status === "ditolak") && (
+                      <button
+                        data-testid={`confirm-cash-${p.id}`}
+                        onClick={() => updateMutation.mutate({ id: p.id, action: "confirm_cash" })}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium hover:bg-green-50 transition-colors text-green-700 border border-green-200"
+                        disabled={updatingId === p.id}
+                        title="Konfirmasi pembayaran cash Rp 25.000"
+                      >
+                        {updatingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Banknote className="w-3.5 h-3.5" />}
+                        Konfirmasi Cash
+                      </button>
                     )}
                   </td>
                 </tr>

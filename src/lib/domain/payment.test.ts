@@ -20,6 +20,7 @@ describe("payment state transitions", () => {
       status: "menunggu_verifikasi",
       proofUrl: "/api/payments/payment-1/proof",
       paidAt: null,
+      method: "transfer",
     });
 
     expect(() =>
@@ -53,6 +54,62 @@ describe("payment state transitions", () => {
         now,
       }),
     ).toThrow("Forbidden");
+  });
+
+  it("allows only an admin to confirm a cash payment directly", () => {
+    const now = new Date("2026-07-13T12:00:00.000Z");
+
+    expect(
+      resolvePaymentTransition({
+        actor: { id: "admin-1", role: "admin" },
+        payment,
+        action: "confirm_cash",
+        now,
+      }),
+    ).toEqual({ status: "lunas", paidAt: now, method: "cash" });
+
+    expect(
+      resolvePaymentTransition({
+        actor: { id: "admin-1", role: "admin" },
+        payment: { ...payment, status: "ditolak" as const },
+        action: "confirm_cash",
+        now,
+      }),
+    ).toEqual({ status: "lunas", paidAt: now, method: "cash" });
+
+    expect(() =>
+      resolvePaymentTransition({
+        actor: { id: "student-1", role: "mahasiswa" },
+        payment,
+        action: "confirm_cash",
+        now,
+      }),
+    ).toThrow("Forbidden");
+
+    expect(() =>
+      resolvePaymentTransition({
+        actor: { id: "admin-1", role: "admin" },
+        payment: { ...payment, status: "lunas" as const },
+        action: "confirm_cash",
+        now,
+      }),
+    ).toThrow("Transisi status pembayaran tidak valid");
+  });
+
+  it("records method transfer when proof is submitted", () => {
+    expect(
+      resolvePaymentTransition({
+        actor: { id: "student-1", role: "mahasiswa" },
+        payment,
+        action: "submit_proof",
+        proofUrl: "/api/payments/payment-1/proof",
+      }),
+    ).toEqual({
+      status: "menunggu_verifikasi",
+      proofUrl: "/api/payments/payment-1/proof",
+      paidAt: null,
+      method: "transfer",
+    });
   });
 
   it("rejects illegal state changes and missing proof", () => {

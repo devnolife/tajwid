@@ -164,6 +164,19 @@ export default function Pembayaran() {
           {/* Action Buttons + Upload */}
           {(payment.status === "belum_bayar" || payment.status === "ditolak") && (
             <div className="space-y-4">
+              <div className="rounded-xl border p-4" style={{ borderColor: "#e8e4db", background: "#faf8f3" }}>
+                <p className="text-sm font-semibold mb-2" style={{ color: "#1A1A1A" }}>Cara Pembayaran</p>
+                <ul className="text-sm space-y-1.5" style={{ color: "#666" }}>
+                  <li className="flex items-start gap-2">
+                    <CreditCard className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#84B179" }} />
+                    <span><span className="font-medium">Transfer:</span> transfer sesuai nominal tagihan, lalu upload bukti transfer di bawah untuk diverifikasi admin.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Wallet className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#84B179" }} />
+                    <span><span className="font-medium">Cash:</span> bayar langsung ke admin. Setelah admin mengonfirmasi, status pembayaran otomatis menjadi lunas.</span>
+                  </li>
+                </ul>
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -212,16 +225,6 @@ export default function Pembayaran() {
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
-                  data-testid="button-bayar"
-                  variant="outline"
-                  className="rounded-xl h-11 w-full sm:w-auto"
-                  disabled
-                  title="Payment gateway belum tersedia; gunakan upload bukti pembayaran"
-                >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Gateway Belum Tersedia
-                </Button>
-                <Button
                   data-testid="button-upload-bukti"
                   className="rounded-xl h-11 w-full sm:flex-1"
                   style={{ background: "#84B179", color: "#fff" }}
@@ -239,6 +242,11 @@ export default function Pembayaran() {
             <a href={payment.proofUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-medium hover:underline" style={{ color: "#84B179" }}>
               <FileText className="w-4 h-4" /> Lihat bukti yang dikirim
             </a>
+          )}
+          {payment.status === "lunas" && payment.method === "cash" && (
+            <div className="inline-flex items-center gap-2 text-sm font-medium" style={{ color: "#84B179" }}>
+              <Wallet className="w-4 h-4" /> Dibayar secara cash (dikonfirmasi admin)
+            </div>
           )}
           {payment.status === "menunggu_verifikasi" && (
             <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: "#FEF3C7" }}>

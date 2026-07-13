@@ -221,4 +221,41 @@ describe("assessment-payment-certificate integration", () => {
     expect(issued).toHaveLength(1);
     expect(issued[0].totalScore).toBe(85);
   });
+
+  it("confirms a cash payment directly to lunas without issuing duplicate certificates", async () => {
+    const [invoice] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.studentId, studentId));
+    await db
+      .update(payments)
+      .set({ status: "belum_bayar", method: null, proofUrl: null, paidAt: null })
+      .where(eq(payments.id, invoice.id));
+
+    await expect(
+      transitionPaymentWorkflow(
+        { id: instructorId, role: "instruktur" },
+        invoice.id,
+        { action: "confirm_cash" },
+        paymentWorkflowDependencies,
+      ),
+    ).rejects.toMatchObject({ status: 403, code: "FORBIDDEN" });
+
+    const confirmed = await transitionPaymentWorkflow(
+      { id: adminId, role: "admin" },
+      invoice.id,
+      { action: "confirm_cash" },
+      paymentWorkflowDependencies,
+    );
+    expect(confirmed.payment.status).toBe("lunas");
+    expect(confirmed.payment.method).toBe("cash");
+    expect(confirmed.payment.paidAt).toBeTruthy();
+    expect(confirmed.certificate).toBeTruthy();
+
+    const issued = await db
+      .select()
+      .from(certificates)
+      .where(eq(certificates.studentId, studentId));
+    expect(issued).toHaveLength(1);
+  });
 });

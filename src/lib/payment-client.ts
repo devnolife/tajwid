@@ -1,4 +1,4 @@
-export type PaymentReviewAction = "approve" | "reject";
+export type PaymentReviewAction = "approve" | "reject" | "confirm_cash";
 
 type Fetcher = typeof fetch;
 

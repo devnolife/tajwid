@@ -49,6 +49,7 @@ export const payments = pgTable(
     academicYear: text("academic_year").notNull().default("2025/2026"),
     billingKey: text("billing_key").notNull().default("certificate"),
     status: paymentStatusEnum("status").notNull().default("belum_bayar"),
+    method: text("method"),
     proofUrl: text("proof_url"),
     paidAt: timestamp("paid_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),

@@ -61,6 +61,7 @@ describe("payment workflow", () => {
       status: "menunggu_verifikasi",
       proofUrl: "/api/payments/payment-1/proof",
       paidAt: null,
+      method: "transfer",
     });
     expect(tx.issueCertificate).not.toHaveBeenCalled();
     expect(tx.createNotification).toHaveBeenCalledWith(
@@ -119,5 +120,45 @@ describe("payment workflow", () => {
       expect.objectContaining({ userId: "student-1", type: "payment" }),
     );
     expect(result.certificate).toEqual({ id: "certificate-1" });
+  });
+
+  it("marks payment lunas with method cash and issues certificate when admin confirms cash", async () => {
+    const { tx, dependencies } = createHarness();
+
+    const result = await transitionPaymentWorkflow(
+      { id: "admin-1", role: "admin" },
+      "payment-1",
+      { action: "confirm_cash" },
+      dependencies,
+    );
+
+    expect(tx.updatePayment).toHaveBeenCalledWith("payment-1", {
+      status: "lunas",
+      paidAt: new Date("2026-07-13T12:00:00.000Z"),
+      method: "cash",
+    });
+    expect(tx.issueCertificate).toHaveBeenCalledWith("student-1", "admin-1");
+    expect(tx.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "student-1", type: "payment" }),
+    );
+    expect(tx.createAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "payment.confirm_cash" }),
+    );
+    expect(result.payment.status).toBe("lunas");
+    expect(result.certificate).toEqual({ id: "certificate-1" });
+  });
+
+  it("rejects cash confirmation from non-admin actors", async () => {
+    const { tx, dependencies } = createHarness();
+
+    await expect(
+      transitionPaymentWorkflow(
+        { id: "instructor-1", role: "instruktur" },
+        "payment-1",
+        { action: "confirm_cash" },
+        dependencies,
+      ),
+    ).rejects.toThrow("Forbidden");
+    expect(tx.updatePayment).not.toHaveBeenCalled();
   });
 });

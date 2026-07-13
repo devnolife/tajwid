@@ -1,0 +1,10 @@
+version: 2
+
+# Semua temuan sebelumnya adalah false positive:
+# - fixture password di file test (bukan kredensial nyata)
+# - interpolasi variabel env di docker-compose (bukan nilai hardcoded)
+secret:
+  ignored_paths:
+    - "**/*.test.ts"
+    - "src/__tests__/**"
+    - "e2e/**"

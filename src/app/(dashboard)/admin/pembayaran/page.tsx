@@ -9,6 +9,16 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CheckCircle, XCircle, Filter, Loader2, Search, Download, Banknote } from "lucide-react";
 import type { User, Payment } from "@shared/schema";
 import { getMahasiswaPhotoUrl } from "@/lib/mahasiswa-photo";
@@ -21,6 +31,7 @@ export default function PembayaranManagement() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [cashConfirmPayment, setCashConfirmPayment] = useState<Payment | null>(null);
 
   const { data: payments, isLoading } = useQuery<Payment[]>({ queryKey: ["/api/payments"] });
   const { data: students } = useQuery<Omit<User, "password">[]>({ queryKey: ["/api/users", "?role=mahasiswa"] });
@@ -184,10 +195,10 @@ export default function PembayaranManagement() {
                     {(p.status === "belum_bayar" || p.status === "ditolak") && (
                       <button
                         data-testid={`confirm-cash-${p.id}`}
-                        onClick={() => updateMutation.mutate({ id: p.id, action: "confirm_cash" })}
+                        onClick={() => setCashConfirmPayment(p)}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium hover:bg-green-50 transition-colors text-green-700 border border-green-200"
                         disabled={updatingId === p.id}
-                        title="Konfirmasi pembayaran cash Rp 25.000"
+                        title="Konfirmasi pembayaran cash"
                       >
                         {updatingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Banknote className="w-3.5 h-3.5" />}
                         Konfirmasi Cash
@@ -212,6 +223,42 @@ export default function PembayaranManagement() {
           />
         )}
       </div>
+
+      <AlertDialog
+        open={!!cashConfirmPayment}
+        onOpenChange={(open) => { if (!open) setCashConfirmPayment(null); }}
+      >
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Pembayaran Cash</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cashConfirmPayment && (
+                <>
+                  Konfirmasi bahwa <span className="font-semibold">{getStudentName(cashConfirmPayment.studentId)}</span> ({getStudentNim(cashConfirmPayment.studentId)}) telah membayar secara cash sebesar{" "}
+                  <span className="font-semibold">Rp {Number(cashConfirmPayment.amount).toLocaleString("id-ID")}</span>?
+                  Status akan langsung menjadi lunas dan sertifikat diterbitkan otomatis. Tindakan ini tidak dapat dibatalkan.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="confirm-cash-submit"
+              className="rounded-xl"
+              style={{ background: "#84B179", color: "#fff" }}
+              onClick={() => {
+                if (cashConfirmPayment) {
+                  updateMutation.mutate({ id: cashConfirmPayment.id, action: "confirm_cash" });
+                }
+                setCashConfirmPayment(null);
+              }}
+            >
+              Ya, Konfirmasi Lunas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

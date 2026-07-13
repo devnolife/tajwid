@@ -23,6 +23,8 @@ replit.md
 !.yarn/releases
 !.yarn/versions
 /coverage
+/playwright-report
+/test-results
 
 # env
 .env

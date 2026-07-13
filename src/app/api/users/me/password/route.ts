@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { storage } from "@/lib/db/storage";
-import { md5Hash } from "@/lib/md5";
+import { hashPassword, verifyPassword } from "@/lib/security/password";
 import { z } from "zod";
 
 const schema = z.object({
@@ -29,15 +29,12 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // Mahasiswa pakai MD5, admin/instruktur plain text (konsisten dengan auth.ts)
-    const isMahasiswa = user.role === "mahasiswa";
-    const currentHashed = isMahasiswa ? md5Hash(currentPassword) : currentPassword;
-    if (user.password !== currentHashed) {
+    const verification = await verifyPassword(currentPassword, user.password, user.role);
+    if (!verification.valid) {
       return NextResponse.json({ message: "Password lama tidak sesuai" }, { status: 400 });
     }
 
-    const newHashed = isMahasiswa ? md5Hash(newPassword) : newPassword;
-    await storage.updateUser(id, { password: newHashed } as any);
+    await storage.updateUser(id, { password: await hashPassword(newPassword) });
 
     return NextResponse.json({ message: "Password berhasil diganti" });
   } catch (e: any) {

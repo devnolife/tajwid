@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createInstructorSchedule,
+  selectCurrentSchedule,
   updateInstructorSchedule,
 } from "@/lib/schedule-client";
 
@@ -66,5 +67,28 @@ describe("schedule client", () => {
         location: "Lantai 3",
       }),
     });
+  });
+
+  it("selects the nearest active schedule without mutating history", () => {
+    const schedules = [
+      { id: "far", date: "2026-08-20T09:00:00.000Z", status: "scheduled" },
+      { id: "past", date: "2026-07-10T09:00:00.000Z", status: "completed" },
+      { id: "near", date: "2026-07-20T09:00:00.000Z", status: "scheduled" },
+    ] as const;
+
+    expect(
+      selectCurrentSchedule(
+        schedules,
+        new Date("2026-07-14T00:00:00.000Z"),
+      )?.id,
+    ).toBe("near");
+    expect(schedules.map(({ id }) => id)).toEqual(["far", "past", "near"]);
+
+    expect(
+      selectCurrentSchedule(
+        schedules,
+        new Date("2026-09-01T00:00:00.000Z"),
+      )?.id,
+    ).toBe("far");
   });
 });

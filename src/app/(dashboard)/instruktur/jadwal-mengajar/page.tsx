@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-client";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -31,6 +31,11 @@ const C = {
 
 type Filter = "semua" | "hari-ini" | "akan-datang" | "selesai";
 
+function toLocalDateTime(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export default function JadwalUjianMengaji() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -46,18 +51,13 @@ export default function JadwalUjianMengaji() {
   const [handledCreateFor, setHandledCreateFor] = useState(false);
   const [scheduleForm, setScheduleForm] = useState({ studentId: "", date: "", room: "", location: "" });
 
-  const toLocalDateTime = (date: Date) => {
-    const pad = (value: number) => String(value).padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  };
-
-  const openCreateSchedule = (studentId = "") => {
+  const openCreateSchedule = useCallback((studentId = "") => {
     const next = new Date();
     next.setDate(next.getDate() + 1);
     next.setHours(9, 0, 0, 0);
     setScheduleForm({ studentId, date: toLocalDateTime(next), room: "", location: "" });
     setScheduleDialog({ mode: "create" });
-  };
+  }, []);
 
   const openEditSchedule = (schedule: Schedule) => {
     setScheduleForm({
@@ -100,7 +100,7 @@ export default function JadwalUjianMengaji() {
       setHandledCreateFor(true);
       openCreateSchedule(createFor);
     }
-  }, [handledCreateFor, searchParams]);
+  }, [handledCreateFor, openCreateSchedule, searchParams]);
 
   const saveSchedule = useMutation({
     mutationFn: async () => {

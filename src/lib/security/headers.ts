@@ -9,7 +9,6 @@ const BASE_CONTENT_SECURITY_POLICY = [
   "form-action 'self'",
   "frame-ancestors 'none'",
   "object-src 'none'",
-  "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https://simak.unismuh.ac.id https://images.unsplash.com",
@@ -23,6 +22,9 @@ export function getSecurityHeaders(
   const production = environment.NODE_ENV === "production";
   const contentSecurityPolicy = [
     ...BASE_CONTENT_SECURITY_POLICY,
+    production
+      ? "script-src 'self' 'unsafe-inline'"
+      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     ...(production ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
   const headers: SecurityHeader[] = [

@@ -17,8 +17,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx --env-file=.env src/lib/db/seed.ts",
-    "db:seed:admin": "tsx --env-file=.env src/lib/db/seed-admin.ts",
+    "db:seed": "node --env-file-if-exists=.env --import tsx src/lib/db/seed.ts",
+    "db:seed:admin": "node --env-file-if-exists=.env --import tsx src/lib/db/seed-admin.ts",
     "test:api": "tsx src/__tests__/api-integration.test.ts"
   },
   "dependencies": {

@@ -14,6 +14,28 @@ export interface ScheduleUpdateInput {
   location: string | null;
 }
 
+interface DatedSchedule {
+  date: string | Date;
+  status?: string;
+}
+
+export function selectCurrentSchedule<T extends DatedSchedule>(
+  schedules: readonly T[],
+  now = new Date(),
+): T | undefined {
+  const ordered = [...schedules].sort(
+    (left, right) =>
+      new Date(left.date).getTime() - new Date(right.date).getTime(),
+  );
+  return (
+    ordered.find(
+      (schedule) =>
+        (!schedule.status || schedule.status === "scheduled") &&
+        new Date(schedule.date).getTime() >= now.getTime(),
+    ) ?? ordered.at(-1)
+  );
+}
+
 async function send<T>(
   url: string,
   method: "POST" | "PATCH",

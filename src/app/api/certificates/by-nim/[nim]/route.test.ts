@@ -47,4 +47,22 @@ describe("certificate lookup by NIM", () => {
     expect(authorized.status).toBe(404);
     expect(mocks.limit).toHaveBeenCalledOnce();
   });
+
+  it("does not expose database errors to integrations", async () => {
+    vi.stubEnv("CERTIFICATE_API_KEY", key);
+    mocks.limit.mockRejectedValue(new Error("database-secret"));
+
+    const response = await GET(
+      new Request("http://localhost", {
+        headers: { "x-api-key": key },
+      }),
+      params,
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      valid: false,
+      message: "Terjadi kesalahan server",
+    });
+  });
 });

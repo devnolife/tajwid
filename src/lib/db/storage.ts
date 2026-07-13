@@ -25,6 +25,13 @@ export interface IStorage {
   getPaymentsByStudent(studentId: string): Promise<Payment[]>;
   getAllPayments(): Promise<Payment[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
+  ensureCertificatePayment(payment: {
+    studentId: string;
+    amount: string;
+    dueDate: Date;
+    description: string;
+    academicYear: string;
+  }): Promise<{ payment: Payment; created: boolean }>;
   updatePayment(id: string, data: Partial<InsertPayment>): Promise<Payment | undefined>;
 
   getSchedule(id: string): Promise<Schedule | undefined>;
@@ -113,6 +120,47 @@ export class DatabaseStorage implements IStorage {
   async createPayment(payment: InsertPayment): Promise<Payment> {
     const [created] = await db.insert(payments).values(payment).returning();
     return created;
+  }
+
+  async ensureCertificatePayment(input: {
+    studentId: string;
+    amount: string;
+    dueDate: Date;
+    description: string;
+    academicYear: string;
+  }): Promise<{ payment: Payment; created: boolean }> {
+    const [created] = await db
+      .insert(payments)
+      .values({
+        ...input,
+        billingKey: "certificate",
+        status: "belum_bayar",
+      })
+      .onConflictDoNothing({
+        target: [
+          payments.studentId,
+          payments.academicYear,
+          payments.billingKey,
+        ],
+      })
+      .returning();
+    if (created) return { payment: created, created: true };
+
+    const [existing] = await db
+      .select()
+      .from(payments)
+      .where(
+        and(
+          eq(payments.studentId, input.studentId),
+          eq(payments.academicYear, input.academicYear),
+          eq(payments.billingKey, "certificate"),
+        ),
+      )
+      .limit(1);
+    if (!existing) {
+      throw new Error("Gagal memastikan tagihan sertifikat");
+    }
+    return { payment: existing, created: false };
   }
 
   async updatePayment(id: string, data: Partial<InsertPayment>): Promise<Payment | undefined> {

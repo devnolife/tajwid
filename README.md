@@ -114,9 +114,9 @@ tajwid/
 
 ### Prerequisites
 
-- **Node.js** ≥ 18
-- **PostgreSQL** ≥ 14
-- **npm** atau **pnpm**
+- **Node.js 24 LTS**
+- **PostgreSQL 16**
+- **npm**
 
 ### 1. Clone & Install
 
@@ -129,28 +129,34 @@ npm install
 ### 2. Setup Environment
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 ```
 
-Edit `.env.local`:
+Ganti seluruh placeholder secret di `.env`. Minimum konfigurasi lokal:
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/mengaji
-NEXTAUTH_SECRET=generate-random-secret-here
-NEXTAUTH_URL=http://localhost:3000
+DATABASE_URL=postgresql://tajwid:strong-password@localhost:5434/mengaji
+DATABASE_SSL=false
+AUTH_SECRET=hasil-openssl-rand-base64-48
+NEXTAUTH_SECRET=nilai-yang-sama-dengan-AUTH_SECRET
+NEXTAUTH_URL=http://localhost:3014
+CERTIFICATE_API_KEY=secret-integrasi-yang-berbeda
+ADMIN_PASSWORD=password-admin-minimal-12-karakter
 ```
 
-> 💡 Generate secret: `openssl rand -base64 32`
+Generate secret dengan `openssl rand -base64 48`. Jangan memakai nilai contoh pada production.
 
 ### 3. Setup Database
 
 ```bash
-# Push schema ke database
-npm run db:push
+# Terapkan migration ter-versioning
+npm run db:migrate
 
 # Seed data demo (opsional)
 npm run db:seed
 ```
+
+`npm run db:push` hanya disediakan untuk prototyping lokal. Gunakan migration dan backup database untuk deployment.
 
 ### 4. Run Development Server
 
@@ -158,7 +164,7 @@ npm run db:seed
 npm run dev
 ```
 
-Buka [http://localhost:3000](http://localhost:3000) 🎉
+Buka [http://localhost:3014](http://localhost:3014) 🎉
 
 ## 🐳 Menjalankan dengan Docker
 
@@ -168,8 +174,7 @@ Project sudah dilengkapi `Dockerfile` (Next.js standalone) dan `docker-compose.y
 
 ```bash
 cp .env.example .env
-# (opsional) ubah POSTGRES_PORT / APP_PORT bila bentrok
-# generate secret:  openssl rand -base64 32  -> AUTH_SECRET & NEXTAUTH_SECRET
+# Isi POSTGRES_PASSWORD, AUTH_SECRET, CERTIFICATE_API_KEY, dan ADMIN_PASSWORD.
 ```
 
 ### 2. Jalankan stack
@@ -185,20 +190,18 @@ Service yang berjalan:
 | `postgres`       | `5434` host → `5432` container | PostgreSQL 16, volume persisten |
 | `app` (Next.js)  | `3015` (atau `APP_PORT`)       | Next.js production (standalone) |
 
-### 3. Migrate schema & seed admin (sekali setup)
+### 3. Migrate schema & seed admin
 
 ```bash
-# push schema Drizzle ke database (dari host, butuh npm install)
-npm run db:push
+docker compose exec app npm run db:migrate
 
-# atau via container app:
-docker compose exec app npx drizzle-kit push
-
-# buat akun admin (idempotent — aman dijalankan berulang)
-docker compose exec app npx tsx src/lib/db/seed-admin.ts
+# idempotent; memakai ADMIN_* dari environment container
+docker compose exec app npm run db:seed:admin
 ```
 
 Akses aplikasi di `http://localhost:${APP_PORT:-3015}`.
+
+Bukti pembayaran disimpan privat pada volume `tajwid_payment_proofs` dan hanya dapat diunduh oleh mahasiswa pemilik atau admin. Jangan menyajikan volume tersebut sebagai static files.
 
 ### Stop / reset
 
@@ -213,9 +216,11 @@ Setelah menjalankan `npm run db:seed`, gunakan akun berikut:
 
 | Role | Username | Password |
 |---|---|---|
-| 👨‍🎓 Mahasiswa | `mahasiswa1` | `password123` |
-| 👨‍🏫 Instruktur | `instruktur1` | `password123` |
-| 🛡️ Admin | `admin1` | `password123` |
+| 👨‍🎓 Mahasiswa | `2024101001` | `password123` |
+| 👨‍🏫 Instruktur | `ustadz_hamid` | `password123` |
+| 🛡️ Admin | `admin` | `admin123` |
+
+Data ini hanya untuk development/test. Production harus memakai `npm run db:seed:admin` dengan password kuat dan tidak menjalankan demo seed.
 
 ## 📊 Sistem Penilaian
 
@@ -234,9 +239,11 @@ Setiap mahasiswa dinilai berdasarkan **4 aspek** kemampuan mengaji:
 │  huruf hijaiyah      │  membaca Al-Qur'an   │
 └──────────────────────┴──────────────────────┘
 
-Total Score = Tajwid + Kelancaran + Makhorijul Huruf + Adab
-Passing Score = 70 (configurable via Admin Settings)
+Total Score = round((Tajwid + Kelancaran + Makhorijul Huruf + Adab) / 4)
+Passing Score = nilai pada Admin Settings (default 70)
 ```
+
+Server menghitung total dan status kelulusan. Override instruktur yang bertentangan dengan ambang wajib disertai alasan audit. Setelah lulus, invoice sertifikat dibuat idempotent; setelah admin menyetujui pembayaran, sertifikat diterbitkan otomatis.
 
 ## 🛠️ Scripts
 
@@ -246,7 +253,14 @@ Passing Score = 70 (configurable via Admin Settings)
 | `npm run build` | Build untuk production |
 | `npm run start` | Start production server |
 | `npm run lint` | Jalankan ESLint |
-| `npm run db:push` | Push schema ke database |
+| `npm run typecheck` | Periksa tipe tanpa emit |
+| `npm test` | Jalankan unit dan route tests |
+| `npm run test:integration` | Jalankan workflow test pada database `*_test` |
+| `npm run test:e2e` | Jalankan Playwright untuk tiga role |
+| `npm run test:ci` | Lint, typecheck, unit test, dan build |
+| `npm run db:generate` | Generate migration Drizzle |
+| `npm run db:migrate` | Terapkan migration ter-versioning |
+| `npm run db:push` | Sinkronisasi schema untuk prototyping lokal saja |
 | `npm run db:seed` | Populate data demo |
 | `npm run db:seed:admin` | Buat / update akun admin (idempotent, baca `ADMIN_*` env) |
 
@@ -259,21 +273,48 @@ Middleware melindungi setiap route berdasarkan role user:
 /instruktur/*  → Hanya role "instruktur"
 /admin/*       → Hanya role "admin"
 /login         → Public (redirect jika sudah login)
-/api/*         → Protected (kecuali /api/auth)
+/api/*         → Protected kecuali auth, health, dan endpoint verifikasi sertifikat
 ```
+
+Policy data:
+
+- Mahasiswa hanya dapat membaca jadwal, assessment, payment, certificate, dan notifikasi miliknya.
+- Instruktur mendapat direktori mahasiswa minimal, dapat membuat jadwal untuk dirinya, serta hanya mengubah/menilai jadwal miliknya.
+- Admin memiliki operasi global, memverifikasi pembayaran, dan menjalankan certificate backfill.
+- Lookup sertifikat berbasis NIM membutuhkan `X-API-Key`; verifikasi berdasarkan nomor sertifikat bersifat publik.
 
 ## 📝 API Routes
 
 | Method | Endpoint | Deskripsi |
 |---|---|---|
 | `GET/POST` | `/api/users` | List & create users |
-| `GET/PUT/DELETE` | `/api/users/[id]` | User detail, update, delete |
+| `PATCH/DELETE` | `/api/users/[id]` | Update / delete user (admin) |
 | `GET/POST` | `/api/payments` | List & create pembayaran |
-| `PUT` | `/api/payments/[id]` | Update status pembayaran |
+| `PATCH` | `/api/payments/[id]` | Action payment (`submit_proof`, `approve`, `reject`) |
+| `POST/GET` | `/api/payments/[id]/proof` | Upload / download bukti privat |
 | `GET/POST` | `/api/schedules` | List & create jadwal |
-| `GET/POST` | `/api/assessments` | List & create penilaian |
-| `GET/PUT` | `/api/settings` | Get & update pengaturan |
-| `POST` | `/api/seed` | Seed database dengan data demo |
+| `PATCH` | `/api/schedules/[id]` | Update jadwal sesuai ownership |
+| `GET/POST` | `/api/assessments` | List & buat assessment berbasis jadwal |
+| `PATCH` | `/api/assessments/[id]` | Koreksi assessment dengan hitung ulang server |
+| `GET/PATCH` | `/api/settings` | Pengaturan admin |
+| `GET` | `/api/settings/public` | Passing score dan metadata publik |
+| `GET/POST` | `/api/certificates` | Certificate sendiri / backfill admin |
+| `GET` | `/api/health` | Database readiness check |
+| `POST` | `/api/seed` | Demo seed; admin dan development saja |
+
+## ✅ Verifikasi dan Operasional
+
+CI menjalankan lint, typecheck, 100+ unit/route tests, migration pada PostgreSQL 16, integration test transaksional, production build, serta E2E login/RBAC untuk tiga role.
+
+Sebelum deploy:
+
+1. Backup dan uji restore database.
+2. Jalankan `npm run db:migrate` pada staging lebih dahulu.
+3. Pastikan `/api/health` mengembalikan `200`.
+4. Pastikan volume bukti pembayaran ter-mount dan writable oleh UID 1001.
+5. Rotasi `AUTH_SECRET`, `CERTIFICATE_API_KEY`, password database, dan password admin secara terpisah.
+
+Log server berbentuk JSON dan meredaksi field credential umum. Audit event mencatat perubahan user, jadwal, assessment, payment, settings, notifikasi, serta penerbitan certificate.
 
 ---
 

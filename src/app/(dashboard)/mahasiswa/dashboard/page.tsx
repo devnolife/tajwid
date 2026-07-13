@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ScoreCard } from "@/components/score-card";
 import { CreditCard, Calendar, FileText, Award, CheckCircle2, Clock, ArrowRight } from "lucide-react";
 import type { Payment, Schedule, Assessment } from "@shared/schema";
+import { selectCurrentSchedule } from "@/lib/schedule-client";
 
 export default function MahasiswaDashboard() {
   const { user } = useAuth();
@@ -25,7 +26,7 @@ export default function MahasiswaDashboard() {
   const isLoading = isLoadingPayments || isLoadingSchedules || isLoadingAssessments;
 
   const payment = payments?.[0];
-  const schedule = schedules?.[0];
+  const schedule = selectCurrentSchedule(schedules ?? []);
   const assessment = assessments?.[0];
 
   const paymentStatus = payment?.status || "belum_bayar";

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { storage } from "@/lib/db/storage";
+import { logger } from "@/lib/logger";
 
 /**
  * Public certificate verification endpoint.
@@ -57,9 +58,10 @@ export async function GET(
       },
       { headers: CORS_HEADERS }
     );
-  } catch (e: any) {
+  } catch (error) {
+    logger.error("certificate.verify.failed", { error });
     return NextResponse.json(
-      { valid: false, message: e.message },
+      { valid: false, message: "Terjadi kesalahan server" },
       { status: 500, headers: CORS_HEADERS }
     );
   }

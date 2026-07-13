@@ -30,5 +30,7 @@ describe("HTTP security headers", () => {
     expect(production["Content-Security-Policy"]).toContain(
       "upgrade-insecure-requests",
     );
+    expect(development["Content-Security-Policy"]).toContain("'unsafe-eval'");
+    expect(production["Content-Security-Policy"]).not.toContain("'unsafe-eval'");
   });
 });

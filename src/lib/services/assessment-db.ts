@@ -29,10 +29,27 @@ function createAssessmentTransaction(
       const [appSettings] = await tx.select().from(settings).limit(1);
       return appSettings;
     },
+    async getAssessment(id) {
+      const [assessment] = await tx
+        .select()
+        .from(assessments)
+        .where(eq(assessments.id, id))
+        .for("update")
+        .limit(1);
+      return assessment;
+    },
     async createAssessment(input) {
       const [assessment] = await tx
         .insert(assessments)
         .values(input)
+        .returning();
+      return assessment;
+    },
+    async updateAssessment(id, input) {
+      const [assessment] = await tx
+        .update(assessments)
+        .set({ ...input, updatedAt: new Date() })
+        .where(eq(assessments.id, id))
         .returning();
       return assessment;
     },

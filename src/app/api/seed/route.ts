@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { seedDatabase } from "@/lib/db/seed";
+import { auth } from "@/lib/auth";
+import { getIdentity, requireRole } from "@/lib/api/authz";
+import { toErrorResponse } from "@/lib/api/http";
 
 export async function POST() {
   if (process.env.NODE_ENV !== "development") {
@@ -7,9 +10,10 @@ export async function POST() {
   }
 
   try {
+    requireRole(getIdentity(await auth()), "admin");
     await seedDatabase();
     return NextResponse.json({ message: "Database seeded" });
-  } catch (e: any) {
-    return NextResponse.json({ message: e.message }, { status: 500 });
+  } catch (error) {
+    return toErrorResponse(error);
   }
 }

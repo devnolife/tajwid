@@ -6,11 +6,15 @@ import type {
 } from "@shared/schema";
 import { ApiError, type Identity } from "@/lib/api/authz";
 import type { z } from "zod";
-import type { assessmentCreateSchema } from "@/lib/api/schemas";
+import type {
+  assessmentCreateSchema,
+  assessmentUpdateSchema,
+} from "@/lib/api/schemas";
 import { calculateAssessmentResult } from "@/lib/domain/assessment";
 import { notifyTemplates } from "@/lib/notify";
 
 export type AssessmentWorkflowInput = z.infer<typeof assessmentCreateSchema>;
+export type AssessmentUpdateInput = z.infer<typeof assessmentUpdateSchema>;
 
 interface ScheduleSnapshot {
   id: string;
@@ -50,7 +54,12 @@ interface RepeatScheduleInput {
 export interface AssessmentTransaction {
   getSchedule(id: string): Promise<ScheduleSnapshot | null | undefined>;
   getSettings(): Promise<SettingsSnapshot | null | undefined>;
+  getAssessment(id: string): Promise<Assessment | null | undefined>;
   createAssessment(input: InsertAssessment): Promise<Assessment>;
+  updateAssessment(
+    id: string,
+    input: Partial<InsertAssessment>,
+  ): Promise<Assessment>;
   completeSchedule(id: string): Promise<void>;
   createCertificatePayment(
     input: CertificatePaymentInput,
@@ -187,5 +196,105 @@ export async function createAssessmentWorkflow(
     });
 
     return assessment;
+  });
+}
+
+export async function updateAssessmentWorkflow(
+  identity: Identity,
+  assessmentId: string,
+  input: AssessmentUpdateInput,
+  dependencies: AssessmentWorkflowDependencies,
+): Promise<Assessment> {
+  if (identity.role !== "admin" && identity.role !== "instruktur") {
+    throw new ApiError(403, "Forbidden", "FORBIDDEN");
+  }
+
+  return dependencies.transaction(async (tx) => {
+    const existing = await tx.getAssessment(assessmentId);
+    if (!existing) {
+      throw new ApiError(404, "Assessment not found", "NOT_FOUND");
+    }
+    if (
+      identity.role === "instruktur" &&
+      existing.instructorId !== identity.id
+    ) {
+      throw new ApiError(403, "Forbidden", "FORBIDDEN");
+    }
+
+    const settings = await tx.getSettings();
+    const passingScore = settings?.passingScore ?? 70;
+    const requestedOutcome = input.requestedOutcome ??
+      (existing.outcomeOverridden
+        ? existing.passed
+          ? "lulus"
+          : "perlu_mengulang"
+        : undefined);
+    const result = calculateAssessmentResult({
+      scores: {
+        tajwid: input.tajwid ?? existing.tajwid,
+        kelancaran: input.kelancaran ?? existing.kelancaran,
+        makhorijulHuruf:
+          input.makhorijulHuruf ?? existing.makhorijulHuruf,
+        adab: input.adab ?? existing.adab,
+      },
+      passingScore,
+      requestedOutcome,
+      overrideReason: input.overrideReason ?? existing.overrideReason,
+    });
+
+    const updated = await tx.updateAssessment(assessmentId, {
+      tajwid: input.tajwid ?? existing.tajwid,
+      kelancaran: input.kelancaran ?? existing.kelancaran,
+      makhorijulHuruf:
+        input.makhorijulHuruf ?? existing.makhorijulHuruf,
+      adab: input.adab ?? existing.adab,
+      totalScore: result.totalScore,
+      passingScore,
+      passed: result.passed,
+      outcomeOverridden: result.overrideReason !== null,
+      overrideReason: result.overrideReason,
+      notes: input.notes === undefined ? existing.notes : input.notes,
+    });
+
+    if (!existing.passed && updated.passed) {
+      const academicYear = settings?.academicYear ?? "2025/2026";
+      const amount = settings?.paymentAmount ?? "25000";
+      const now = dependencies.now?.() ?? new Date();
+      const payment = await tx.createCertificatePayment({
+        studentId: updated.studentId,
+        amount,
+        academicYear,
+        dueDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+        description: `Biaya Sertifikat Tajwid Tahun Akademik ${academicYear}`,
+      });
+      if (payment) {
+        await tx.createNotification(
+          notifyTemplates.paymentCreated(
+            updated.studentId,
+            payment.amount,
+            payment.id,
+          ),
+        );
+      }
+    }
+
+    await tx.createNotification(
+      notifyTemplates.assessmentPublished(
+        updated.studentId,
+        updated.totalScore,
+        updated.passed,
+      ),
+    );
+    await tx.createAuditEvent({
+      actorId: identity.id,
+      action: "assessment.updated",
+      entityType: "assessment",
+      entityId: updated.id,
+      details: {
+        fields: Object.keys(input),
+        outcomeOverridden: updated.outcomeOverridden,
+      },
+    });
+    return updated;
   });
 }

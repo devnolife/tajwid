@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError, type Identity } from "@/lib/api/authz";
 import {
   createAssessmentWorkflow,
+  updateAssessmentWorkflow,
   type AssessmentTransaction,
   type AssessmentWorkflowDependencies,
 } from "@/lib/services/assessment-service";
@@ -27,6 +28,25 @@ const input = {
   notes: "Bacaan cukup baik",
 };
 
+const existingAssessment = {
+  id: "assessment-1",
+  studentId: "student-1",
+  instructorId: "instructor-1",
+  scheduleId: "schedule-1",
+  tajwid: 60,
+  kelancaran: 60,
+  makhorijulHuruf: 60,
+  adab: 60,
+  totalScore: 60,
+  passingScore: 70,
+  passed: false,
+  outcomeOverridden: false,
+  overrideReason: null,
+  notes: null,
+  assessedAt: new Date("2026-07-13T00:00:00.000Z"),
+  updatedAt: new Date("2026-07-13T00:00:00.000Z"),
+};
+
 function createHarness(overrides: Partial<AssessmentTransaction> = {}) {
   const tx: AssessmentTransaction = {
     getSchedule: vi.fn().mockResolvedValue(schedule),
@@ -39,6 +59,11 @@ function createHarness(overrides: Partial<AssessmentTransaction> = {}) {
       id: "assessment-1",
       assessedAt: new Date("2026-07-13T00:00:00.000Z"),
       updatedAt: new Date("2026-07-13T00:00:00.000Z"),
+      ...data,
+    })),
+    getAssessment: vi.fn().mockResolvedValue(existingAssessment),
+    updateAssessment: vi.fn().mockImplementation(async (_id, data) => ({
+      ...existingAssessment,
       ...data,
     })),
     completeSchedule: vi.fn().mockResolvedValue(undefined),
@@ -156,5 +181,47 @@ describe("assessment workflow", () => {
     expect(tx.createNotification).toHaveBeenCalledWith(
       expect.objectContaining({ userId: "student-1", type: "schedule" }),
     );
+  });
+
+  it("recalculates corrections and keeps instructor ownership server-side", async () => {
+    const createCertificatePayment = vi.fn().mockResolvedValue({
+      id: "payment-1",
+      amount: "25000",
+    });
+    const { tx, dependencies } = createHarness({ createCertificatePayment });
+
+    const updated = await updateAssessmentWorkflow(
+      instructor,
+      "assessment-1",
+      {
+        tajwid: 90,
+        kelancaran: 90,
+        makhorijulHuruf: 90,
+        adab: 90,
+        notes: "Koreksi hasil",
+      },
+      dependencies,
+    );
+
+    expect(tx.updateAssessment).toHaveBeenCalledWith(
+      "assessment-1",
+      expect.objectContaining({
+        totalScore: 90,
+        passingScore: 76,
+        passed: true,
+        outcomeOverridden: false,
+      }),
+    );
+    expect(createCertificatePayment).toHaveBeenCalledOnce();
+    expect(updated.instructorId).toBe("instructor-1");
+
+    await expect(
+      updateAssessmentWorkflow(
+        { id: "instructor-2", role: "instruktur" },
+        "assessment-1",
+        { notes: "Forged" },
+        dependencies,
+      ),
+    ).rejects.toThrow("Forbidden");
   });
 });

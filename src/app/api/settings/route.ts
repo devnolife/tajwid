@@ -1,34 +1,34 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { storage } from "@/lib/db/storage";
+import { getIdentity, requireRole } from "@/lib/api/authz";
+import { parseJson, toErrorResponse } from "@/lib/api/http";
+import { settingsUpdateSchema } from "@/lib/api/schemas";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
+  try {
+    requireRole(getIdentity(await auth()), "admin");
+    const settings = await storage.getSettings();
+    return NextResponse.json(settings ?? {});
+  } catch (error) {
+    return toErrorResponse(error);
   }
-  if ((session.user as any).role !== "admin") {
-    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-  }
-
-  const settings = await storage.getSettings();
-  return NextResponse.json(settings ?? {});
 }
 
 export async function PATCH(request: Request) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-  }
-  if ((session.user as any).role !== "admin") {
-    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-  }
-
   try {
-    const body = await request.json();
-    const settings = await storage.updateSettings(body);
+    const identity = requireRole(getIdentity(await auth()), "admin");
+    const input = await parseJson(request, settingsUpdateSchema);
+    const settings = await storage.updateSettings(input);
+    await storage.createAuditEvent({
+      actorId: identity.id,
+      action: "settings.updated",
+      entityType: "settings",
+      entityId: settings?.id ?? null,
+      details: { fields: Object.keys(input) },
+    });
     return NextResponse.json(settings);
-  } catch (e: any) {
-    return NextResponse.json({ message: e.message }, { status: 400 });
+  } catch (error) {
+    return toErrorResponse(error);
   }
 }

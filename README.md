@@ -136,6 +136,7 @@ Ganti seluruh placeholder secret di `.env`. Minimum konfigurasi lokal:
 
 ```env
 DATABASE_URL=postgresql://tajwid:strong-password@localhost:5434/mengaji
+DOCKER_DATABASE_URL=postgresql://tajwid:strong-password@postgres:5432/mengaji
 DATABASE_SSL=false
 AUTH_SECRET=hasil-openssl-rand-base64-48
 NEXTAUTH_SECRET=nilai-yang-sama-dengan-AUTH_SECRET

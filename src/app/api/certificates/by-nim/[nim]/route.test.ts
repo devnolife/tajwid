@@ -27,6 +27,7 @@ describe("certificate lookup by NIM", () => {
   });
 
   it("fails closed without a configured integration key", async () => {
+    vi.stubEnv("CERTIFICATE_API_KEY", "");
     const response = await GET(new Request("http://localhost"), params);
     expect(response.status).toBe(503);
     expect(mocks.limit).not.toHaveBeenCalled();

@@ -26,6 +26,7 @@ describe("certificate integration lookup", () => {
   });
 
   it("fails closed when no integration key is configured", async () => {
+    vi.stubEnv("CERTIFICATE_API_KEY", "");
     expect((await GET(request())).status).toBe(503);
   });
 

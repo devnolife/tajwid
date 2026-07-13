@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-client";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/status-badge";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { uploadPaymentProof } from "@/lib/payment-client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Upload, Clock, CheckCircle, Wallet, CalendarDays, FileText, Loader2, ImageIcon, X } from "lucide-react";
@@ -44,16 +45,7 @@ export default function Pembayaran() {
   const uploadMutation = useMutation({
     mutationFn: async (paymentId: string) => {
       if (!selectedFile) throw new Error("Pilih file bukti pembayaran terlebih dahulu");
-      const fd = new FormData();
-      fd.append("file", selectedFile);
-      fd.append("folder", "payments");
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Upload gagal");
-      await apiRequest("PATCH", `/api/payments/${paymentId}`, {
-        status: "menunggu_verifikasi",
-        proofUrl: data.url,
-      });
+      await uploadPaymentProof(paymentId, selectedFile);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/payments"] });

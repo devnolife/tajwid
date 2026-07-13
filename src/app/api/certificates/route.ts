@@ -16,7 +16,10 @@ export async function GET(request: Request) {
     const identity = getIdentity(await auth());
     const requestedStudentId = new URL(request.url).searchParams.get("studentId");
     const scope = resolveStudentResourceScope(identity, requestedStudentId);
-    if ("all" in scope || !scope.studentId) {
+    if ("all" in scope) {
+      return NextResponse.json(await storage.getAllCertificates());
+    }
+    if (!scope.studentId) {
       throw new ApiError(400, "studentId required", "INVALID_INPUT");
     }
     const cert = await storage.getCertificateByStudent(scope.studentId);

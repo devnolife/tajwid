@@ -3,12 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   getCertificateByStudent: vi.fn(),
+  getAllCertificates: vi.fn(),
   issueCertificateForStudent: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ auth: mocks.auth }));
 vi.mock("@/lib/db/storage", () => ({
-  storage: { getCertificateByStudent: mocks.getCertificateByStudent },
+  storage: {
+    getCertificateByStudent: mocks.getCertificateByStudent,
+    getAllCertificates: mocks.getAllCertificates,
+  },
 }));
 vi.mock("@/lib/services/certificate-service", () => ({
   issueCertificateForStudent: mocks.issueCertificateForStudent,
@@ -34,6 +38,7 @@ describe("certificate API authorization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getCertificateByStudent.mockResolvedValue(null);
+    mocks.getAllCertificates.mockResolvedValue([]);
     mocks.issueCertificateForStudent.mockResolvedValue({
       id: "certificate-1",
       studentId: "b3919af3-f943-4cfa-856d-d53fdfdf7a8e",
@@ -63,6 +68,17 @@ describe("certificate API authorization", () => {
     expect(
       (await GET(new Request("http://localhost/api/certificates"))).status,
     ).toBe(403);
+  });
+
+  it("allows an administrator to list all issued certificates", async () => {
+    mocks.auth.mockResolvedValue(session("admin-1", "admin"));
+
+    const response = await GET(
+      new Request("http://localhost/api/certificates"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.getAllCertificates).toHaveBeenCalledOnce();
   });
 
   it("reserves manual issuance for admin backfill", async () => {

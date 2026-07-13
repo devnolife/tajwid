@@ -45,6 +45,7 @@ export default function Penilaian() {
   const [makhorijul, setMakhorijul] = useState(70);
   const [adab, setAdab] = useState(70);
   const [notes, setNotes] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
   // Outcome dipilih manual oleh instruktur: LULUS atau PERLU MENGULANG.
   // Default: mengikuti ambang otomatis (≥70 → lulus), tapi bisa dioverride.
   const [outcome, setOutcome] = useState<"lulus" | "perlu_mengulang" | null>(null);
@@ -62,9 +63,12 @@ export default function Penilaian() {
     queryKey: ["/api/assessments", `?studentId=${studentId}`],
     enabled: !!studentId,
   });
-  const { data: instructorSchedules } = useQuery<Schedule[]>({
+  const { data: instructorSchedules, isLoading: isLoadingSchedules } = useQuery<Schedule[]>({
     queryKey: ["/api/schedules", `?instructorId=${user?.id}`],
     enabled: !!user?.id,
+  });
+  const { data: workflowSettings } = useQuery<{ passingScore: number }>({
+    queryKey: ["/api/settings/public"],
   });
   const currentSchedule = scheduleId
     ? instructorSchedules?.find((s) => s.id === scheduleId)
@@ -82,6 +86,7 @@ export default function Penilaian() {
       setAdab(existing.adab);
       setNotes(existing.notes || "");
       setOutcome(existing.passed ? "lulus" : "perlu_mengulang");
+      setOverrideReason(existing.overrideReason || "");
     }
   }, [existing]);
 
@@ -99,18 +104,22 @@ export default function Penilaian() {
   }, [currentSchedule, repeatAt]);
 
   const totalScore = Math.round((tajwid + kelancaran + makhorijul + adab) / 4);
-  const autoPassed = totalScore >= 70;
+  const passingScore = workflowSettings?.passingScore ?? 70;
+  const autoPassed = totalScore >= passingScore;
   const effectiveOutcome: "lulus" | "perlu_mengulang" = outcome ?? (autoPassed ? "lulus" : "perlu_mengulang");
   const passed = effectiveOutcome === "lulus";
+  const isOutcomeOverridden = passed !== autoPassed;
 
   const mutation = useMutation({
     mutationFn: async () => {
+      if (!scheduleId) throw new Error("Penilaian wajib terkait jadwal");
       const data: Record<string, any> = {
-        studentId, instructorId: user?.id,
+        scheduleId,
         tajwid, kelancaran, makhorijulHuruf: makhorijul, adab,
-        totalScore, passed, notes,
+        requestedOutcome: effectiveOutcome,
+        notes,
       };
-      if (scheduleId) data.scheduleId = scheduleId;
+      if (isOutcomeOverridden) data.overrideReason = overrideReason.trim();
       // Saat Perlu Mengulang & instruktur memilih sekaligus jadwal ulang
       if (!passed && scheduleRepeatNow && repeatAt) {
         data.repeatScheduleAt = new Date(repeatAt).toISOString();
@@ -133,7 +142,7 @@ export default function Penilaian() {
             : "Penilaian disimpan. Mahasiswa diminta mengulang pada sesi berikutnya.",
       });
       setShowConfirm(false);
-      router.push(scheduleId ? "/instruktur/sesi-hari-ini" : "/instruktur/mahasiswa-list");
+      router.push("/instruktur/jadwal-mengajar");
     },
     onError: () => {
       toast({ title: "Gagal", description: "Terjadi kesalahan saat menyimpan", variant: "destructive" });
@@ -175,7 +184,7 @@ export default function Penilaian() {
   }
 
   // === Loading ===
-  if (isLoadingStudents) {
+  if (isLoadingStudents || isLoadingSchedules) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-32 rounded-3xl" style={{ background: "hsl(40 22% 90%)" }} />
@@ -190,6 +199,21 @@ export default function Penilaian() {
         <p className="font-display italic text-xl text-foreground">Mahasiswa tidak ditemukan</p>
         <Button onClick={() => router.push("/instruktur/mahasiswa-list")} className="mt-4 rounded-xl" style={{ background: C.emerald, color: C.cream }}>
           Kembali ke daftar
+        </Button>
+      </div>
+    );
+  }
+
+  if (!scheduleId || !currentSchedule) {
+    return (
+      <div className="rounded-3xl border p-12 text-center" style={{ background: C.bgSoft, borderColor: C.taupe }}>
+        <Calendar className="w-10 h-10 mx-auto mb-3" style={{ color: C.gold }} />
+        <p className="font-display italic text-xl text-foreground">Pilih jadwal yang sah</p>
+        <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+          Penilaian hanya dapat dimulai dari jadwal tes milik Anda agar mahasiswa dan sesi tidak dapat dipalsukan.
+        </p>
+        <Button onClick={() => router.push("/instruktur/jadwal-mengajar")} className="mt-5 rounded-xl" style={{ background: C.emerald, color: C.cream }}>
+          Buka Jadwal Tes
         </Button>
       </div>
     );
@@ -385,7 +409,7 @@ export default function Penilaian() {
             <CheckCircle2 className="w-4 h-4" /> Keputusan Akhir
           </p>
           <p className="text-xs text-muted-foreground">
-            Pilih hasil sesi ini. Default mengikuti ambang skor (≥70 = Lulus), tapi Anda boleh mengubahnya berdasarkan penilaian Anda.
+            Pilih hasil sesi ini. Default mengikuti ambang skor (≥{passingScore} = Lulus). Perubahan dari hasil otomatis wajib disertai alasan.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
             <button
@@ -425,6 +449,24 @@ export default function Penilaian() {
               </p>
             </button>
           </div>
+          {isOutcomeOverridden && (
+            <div className="mt-4 space-y-2">
+              <label htmlFor="override-reason" className="text-sm font-bold" style={{ color: C.rose }}>
+                Alasan perubahan hasil
+              </label>
+              <Textarea
+                id="override-reason"
+                value={overrideReason}
+                onChange={(event) => setOverrideReason(event.target.value)}
+                placeholder="Jelaskan alasan profesional minimal 10 karakter..."
+                className="rounded-xl min-h-[90px] resize-none"
+                aria-describedby="override-reason-help"
+              />
+              <p id="override-reason-help" className="text-xs text-muted-foreground">
+                Alasan disimpan dalam audit penilaian dan tidak boleh kurang dari 10 karakter.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* === Repeat schedule picker — muncul saat Perlu Mengulang === */}
@@ -501,6 +543,7 @@ export default function Penilaian() {
           <Button
             data-testid="button-simpan-penilaian"
             onClick={() => setShowConfirm(true)}
+            disabled={isOutcomeOverridden && overrideReason.trim().length < 10}
             className="rounded-xl h-12 px-8 font-semibold transition-all"
             style={{
               background: C.emerald,
@@ -535,6 +578,11 @@ export default function Penilaian() {
               <span className="font-bold" style={{ color: passed ? C.sage : "#D97706" }}>
                 {passed ? "Lulus" : "Perlu Mengulang"}
               </span>
+              {isOutcomeOverridden && (
+                <span className="block text-xs mt-2">
+                  Override hasil otomatis: {overrideReason.trim()}
+                </span>
+              )}
               {passed && (
                 <span className="block text-xs mt-2 italic" style={{ color: C.emeraldSoft }}>
                   Tagihan biaya sertifikat akan otomatis dibuat untuk mahasiswa.

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { reviewPayment, type PaymentReviewAction } from "@/lib/payment-client";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -25,11 +26,9 @@ export default function PembayaranManagement() {
   const { data: students } = useQuery<Omit<User, "password">[]>({ queryKey: ["/api/users", "?role=mahasiswa"] });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, action }: { id: string; action: PaymentReviewAction }) => {
       setUpdatingId(id);
-      const data: any = { status };
-      if (status === "lunas") data.paidAt = new Date().toISOString();
-      await apiRequest("PATCH", `/api/payments/${id}`, data);
+      await reviewPayment<Payment>(id, action);
     },
     onSuccess: () => {
       setUpdatingId(null);
@@ -162,7 +161,7 @@ export default function PembayaranManagement() {
                       <div className="flex gap-1">
                         <button
                           data-testid={`verify-payment-${p.id}`}
-                          onClick={() => updateMutation.mutate({ id: p.id, status: "lunas" })}
+                          onClick={() => updateMutation.mutate({ id: p.id, action: "approve" })}
                           className="p-1.5 rounded-lg hover:bg-green-50 transition-colors text-green-600"
                           disabled={updatingId === p.id}
                           title="Setujui"
@@ -172,7 +171,7 @@ export default function PembayaranManagement() {
                         {p.status === "menunggu_verifikasi" && (
                           <button
                             data-testid={`reject-payment-${p.id}`}
-                            onClick={() => updateMutation.mutate({ id: p.id, status: "ditolak" })}
+                            onClick={() => updateMutation.mutate({ id: p.id, action: "reject" })}
                             className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500"
                             disabled={updatingId === p.id}
                             title="Tolak"

@@ -50,6 +50,7 @@ export interface IStorage {
 
   getCertificateByNumber(certificateNumber: string): Promise<Certificate | undefined>;
   getCertificateByStudent(studentId: string): Promise<Certificate | undefined>;
+  getAllCertificates(): Promise<Certificate[]>;
   createCertificate(certificate: InsertCertificate): Promise<Certificate>;
 
   getNotificationsByUser(userId: string, limit?: number): Promise<Notification[]>;
@@ -230,6 +231,10 @@ export class DatabaseStorage implements IStorage {
   async getCertificateByStudent(studentId: string): Promise<Certificate | undefined> {
     const [cert] = await db.select().from(certificates).where(eq(certificates.studentId, studentId));
     return cert;
+  }
+
+  async getAllCertificates(): Promise<Certificate[]> {
+    return db.select().from(certificates).orderBy(desc(certificates.issuedAt));
   }
 
   async createCertificate(certificate: InsertCertificate): Promise<Certificate> {

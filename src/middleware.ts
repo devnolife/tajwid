@@ -8,6 +8,7 @@ const PUBLIC_PREFIXES = [
   "/api/certificates/verify",
   "/api/certificates/by-nim",
   "/api/certificates/check",
+  "/api/health",
   "/_next",
   "/favicon.ico",
 ];

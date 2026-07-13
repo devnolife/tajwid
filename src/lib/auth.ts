@@ -8,6 +8,13 @@ import {
   verifyAndUpgradePassword,
   verifyPassword,
 } from "@/lib/security/password";
+import { FixedWindowRateLimiter } from "@/lib/security/rate-limit";
+import { logger } from "@/lib/logger";
+
+const loginRateLimiter = new FixedWindowRateLimiter({
+  limit: 5,
+  windowMs: 15 * 60 * 1_000,
+});
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -16,11 +23,34 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
         const { username, password } = parsed.data;
+        const forwardedFor = request.headers.get("x-forwarded-for")
+          ?.split(",")[0]
+          ?.trim();
+        const clientAddress = forwardedFor || request.headers.get("x-real-ip") || "unknown";
+        const rateLimitKey = `${clientAddress}:${username.toLowerCase()}`;
+        const rateLimit = loginRateLimiter.consume(rateLimitKey);
+        if (!rateLimit.allowed) {
+          logger.warn("auth.login.rate_limited", {
+            username,
+            clientAddress,
+            retryAfterSeconds: rateLimit.retryAfterSeconds,
+          });
+          return null;
+        }
+        const completeLogin = <T extends { role: string }>(user: T): T => {
+          loginRateLimiter.reset(rateLimitKey);
+          logger.info("auth.login.succeeded", {
+            username,
+            clientAddress,
+            role: user.role,
+          });
+          return user;
+        };
 
         // Auto-detect: jika username berupa angka → mahasiswa (NIM)
         const isMahasiswa = /^\d+$/.test(username);
@@ -62,7 +92,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 // GraphQL tidak tersedia — gunakan data lokal
               }
 
-              return {
+              return completeLogin({
                 id: user.id,
                 name: user.name,
                 email: user.email,
@@ -73,7 +103,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 program: user.program,
                 phone: user.phone,
                 specialization: user.specialization,
-              };
+              });
             }
           } catch {
             // DB tidak tersedia — lanjut ke GraphQL
@@ -114,7 +144,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               // DB tidak tersedia — tetap return user dari GraphQL
             }
 
-            return {
+            return completeLogin({
               id: userId,
               name: userName,
               email: userEmail,
@@ -125,7 +155,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               program: mahasiswa.prodi,
               phone: mahasiswa.hp,
               specialization: null,
-            };
+            });
           }
 
           return null;
@@ -148,7 +178,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return null;
           }
 
-          return {
+          return completeLogin({
             id: user.id,
             name: user.name,
             email: user.email,
@@ -159,7 +189,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             program: user.program,
             phone: user.phone,
             specialization: user.specialization,
-          };
+          });
         } catch {
           return null;
         }

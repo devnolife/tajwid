@@ -2,13 +2,14 @@ import { db } from "@/lib/db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { hashPassword } from "@/lib/security/password";
+import { getAdminSeedConfig } from "@/lib/db/seed-admin-config";
 
 /**
  * Seed (atau update) akun admin secara idempotent.
  *
- * Konfigurasi via env (semua opsional, ada default):
+ * Konfigurasi via env:
  *   ADMIN_USERNAME  (default: "admin")
- *   ADMIN_PASSWORD  (default: "admin123")
+ *   ADMIN_PASSWORD  (wajib, minimal 12 karakter)
  *   ADMIN_NAME      (default: "Administrator Sistem")
  *   ADMIN_EMAIL     (default: "admin@tajwid.local")
  *   ADMIN_PHONE     (opsional)
@@ -16,11 +17,7 @@ import { hashPassword } from "@/lib/security/password";
  * Password selalu disimpan sebagai salted scrypt hash.
  */
 export async function seedAdmin() {
-  const username = process.env.ADMIN_USERNAME ?? "admin";
-  const password = process.env.ADMIN_PASSWORD ?? "admin123";
-  const name = process.env.ADMIN_NAME ?? "Administrator Sistem";
-  const email = process.env.ADMIN_EMAIL ?? "admin@tajwid.local";
-  const phone = process.env.ADMIN_PHONE ?? null;
+  const { username, password, name, email, phone } = getAdminSeedConfig();
   const encodedPassword = await hashPassword(password);
 
   const existing = await db.select().from(users).where(eq(users.username, username));

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ApiError } from "@/lib/api/authz";
+import { logger } from "@/lib/logger";
 
 export async function parseJson<T>(
   request: Request,
@@ -28,7 +29,7 @@ export function toErrorResponse(error: unknown): NextResponse {
     );
   }
 
-  console.error("[api] unhandled request failure");
+  logger.error("api.request.failed", { error });
   return NextResponse.json(
     { message: "Terjadi kesalahan server", code: "INTERNAL_ERROR" },
     { status: 500 },

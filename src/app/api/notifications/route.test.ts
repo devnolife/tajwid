@@ -69,5 +69,5 @@ describe("notifications API", () => {
 
     const injected = await post({ ...body, read: true });
     expect(injected.status).toBe(400);
-});
+  });
 });

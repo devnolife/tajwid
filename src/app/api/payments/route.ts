@@ -58,7 +58,6 @@ export async function POST(request: Request) {
       notifyTemplates.paymentCreated(
         payment.studentId,
         payment.amount,
-        payment.id,
       ),
     );
     return NextResponse.json(payment, { status: 201 });

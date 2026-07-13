@@ -7,6 +7,7 @@ describe("middleware public path boundaries", () => {
     expect(isPublicPath("/api/auth/session")).toBe(true);
     expect(isPublicPath("/verify/TJW-2026-ABC")).toBe(true);
     expect(isPublicPath("/api/certificates/check")).toBe(true);
+    expect(isPublicPath("/api/health")).toBe(true);
   });
 
   it("does not allow lookalike prefixes", () => {

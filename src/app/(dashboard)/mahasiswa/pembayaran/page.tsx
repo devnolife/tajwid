@@ -215,10 +215,11 @@ export default function Pembayaran() {
                   data-testid="button-bayar"
                   variant="outline"
                   className="rounded-xl h-11 w-full sm:w-auto"
-                  onClick={() => toast({ title: "Info", description: "Integrasi payment gateway akan segera tersedia" })}
+                  disabled
+                  title="Payment gateway belum tersedia; gunakan upload bukti pembayaran"
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
-                  Bayar via Gateway
+                  Gateway Belum Tersedia
                 </Button>
                 <Button
                   data-testid="button-upload-bukti"

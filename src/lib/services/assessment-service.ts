@@ -11,7 +11,7 @@ import type {
   assessmentUpdateSchema,
 } from "@/lib/api/schemas";
 import { calculateAssessmentResult } from "@/lib/domain/assessment";
-import { notifyTemplates } from "@/lib/notify";
+import { notifyTemplates } from "@/lib/notification-templates";
 
 export type AssessmentWorkflowInput = z.infer<typeof assessmentCreateSchema>;
 export type AssessmentUpdateInput = z.infer<typeof assessmentUpdateSchema>;
@@ -152,7 +152,6 @@ export async function createAssessmentWorkflow(
           notifyTemplates.paymentCreated(
             assessment.studentId,
             payment.amount,
-            payment.id,
           ),
         );
       }
@@ -272,7 +271,6 @@ export async function updateAssessmentWorkflow(
           notifyTemplates.paymentCreated(
             updated.studentId,
             payment.amount,
-            payment.id,
           ),
         );
       }

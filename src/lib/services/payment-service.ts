@@ -7,7 +7,7 @@ import type { z } from "zod";
 import { ApiError, type Identity } from "@/lib/api/authz";
 import type { paymentActionSchema } from "@/lib/api/schemas";
 import { resolvePaymentTransition } from "@/lib/domain/payment";
-import { notifyTemplates } from "@/lib/notify";
+import { notifyTemplates } from "@/lib/notification-templates";
 
 export type PaymentWorkflowInput = z.infer<typeof paymentActionSchema>;
 

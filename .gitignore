@@ -23,6 +23,7 @@ replit.md
 !.yarn/releases
 !.yarn/versions
 /coverage
+/.data/
 /playwright-report
 /test-results
 

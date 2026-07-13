@@ -4,6 +4,7 @@ import { getIdentity } from "@/lib/api/authz";
 import { toErrorResponse } from "@/lib/api/http";
 
 export async function POST(_request: Request) {
+  void _request;
   try {
     getIdentity(await auth());
     return NextResponse.json(

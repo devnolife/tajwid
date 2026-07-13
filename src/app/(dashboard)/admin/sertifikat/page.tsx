@@ -79,7 +79,7 @@ export default function SertifikatManagement() {
               </div>
             </div>
           ))}
-         </div>
+        </div>
       ) : eligibleStudents.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Award className="w-16 h-16 mb-4" style={{ color: "#ccc" }} />

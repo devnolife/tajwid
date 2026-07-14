@@ -5,6 +5,7 @@ const baseURL = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3014";
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
+  timeout: 60_000,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {

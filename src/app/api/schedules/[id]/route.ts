@@ -72,6 +72,27 @@ export async function PATCH(
       details: { fields: Object.keys(input) },
     });
 
+    // Beri tahu mahasiswa saat jadwal berubah waktu/tempat atau dibatalkan.
+    if (updateData.status === "cancelled" && existing.status !== "cancelled") {
+      await notify(
+        notifyTemplates.scheduleCancelledForStudent(
+          schedule.studentId,
+          new Date(schedule.date),
+        ),
+      );
+    } else if (
+      (date && new Date(date).getTime() !== new Date(existing.date).getTime()) ||
+      (fields.room && fields.room !== existing.room)
+    ) {
+      await notify(
+        notifyTemplates.scheduleUpdatedForStudent(
+          schedule.studentId,
+          new Date(schedule.date),
+          schedule.room,
+        ),
+      );
+    }
+
     return NextResponse.json(schedule);
   } catch (error) {
     return toErrorResponse(error);

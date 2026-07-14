@@ -43,6 +43,22 @@ export const notifyTemplates = {
     link: "/instruktur/jadwal-mengajar",
     read: false,
   }),
+  scheduleUpdatedForStudent: (userId: string, date: Date, room: string): InsertNotification => ({
+    userId,
+    type: "schedule",
+    title: "Jadwal diperbarui",
+    message: `Jadwal tes tajwid Anda diperbarui: ${date.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} pukul ${date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} di ${room}.`,
+    link: "/mahasiswa/jadwal",
+    read: false,
+  }),
+  scheduleCancelledForStudent: (userId: string, date: Date): InsertNotification => ({
+    userId,
+    type: "schedule",
+    title: "Jadwal dibatalkan",
+    message: `Jadwal tes tajwid Anda pada ${date.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} dibatalkan. Silakan hubungi admin untuk jadwal pengganti.`,
+    link: "/mahasiswa/jadwal",
+    read: false,
+  }),
   assessmentPublished: (userId: string, score: number, passed: boolean): InsertNotification => ({
     userId,
     type: "result",

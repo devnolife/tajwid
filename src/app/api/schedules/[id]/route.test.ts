@@ -24,6 +24,8 @@ vi.mock("@/lib/notify", () => ({
   notify: mocks.notify,
   notifyTemplates: {
     repeatScheduleCreated: vi.fn(() => ({ title: "Jadwal ulang" })),
+    scheduleUpdatedForStudent: vi.fn(() => ({ title: "Jadwal diperbarui" })),
+    scheduleCancelledForStudent: vi.fn(() => ({ title: "Jadwal dibatalkan" })),
   },
 }));
 

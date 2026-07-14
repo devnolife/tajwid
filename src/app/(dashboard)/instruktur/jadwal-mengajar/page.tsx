@@ -153,6 +153,17 @@ export default function JadwalUjianMengaji() {
     onError: () => toast({ title: "Gagal", description: "Tidak dapat mengubah status sesi", variant: "destructive" }),
   });
 
+  const markCompleted = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("PATCH", `/api/schedules/${id}`, { status: "completed" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/schedules"] });
+      toast({ title: "Sesi selesai", description: "Status sesi ditandai selesai." });
+    },
+    onError: () => toast({ title: "Gagal", description: "Tidak dapat mengubah status sesi", variant: "destructive" }),
+  });
+
   const now = new Date();
   const startToday = new Date(now); startToday.setHours(0, 0, 0, 0);
   const startTomorrow = new Date(startToday); startTomorrow.setDate(startTomorrow.getDate() + 1);
@@ -444,6 +455,19 @@ export default function JadwalUjianMengaji() {
                         >
                           <Pencil className="w-3 h-3" /> Edit
                         </button>
+                        {isPast && (
+                          <button
+                            type="button"
+                            data-testid={`btn-complete-${s.id}`}
+                            onClick={() => markCompleted.mutate(s.id)}
+                            disabled={markCompleted.isPending}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors hover:bg-green-50"
+                            style={{ color: C.sage, borderColor: `${C.sage}66` }}
+                            title="Tandai sesi selesai tanpa penilaian"
+                          >
+                            <CheckCircle2 className="w-3 h-3" /> Selesai
+                          </button>
+                        )}
                         <button
                           type="button"
                           data-testid={`btn-no-show-${s.id}`}

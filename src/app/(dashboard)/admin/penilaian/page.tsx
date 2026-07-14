@@ -1,15 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Filter, Download } from "lucide-react";
+import { Search, Filter, Download, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Pagination, usePagination } from "@/components/pagination";
 import type { User, Assessment } from "@shared/schema";
+
+const SCORE_FIELDS = [
+  { key: "tajwid", label: "Tajwid" },
+  { key: "kelancaran", label: "Kelancaran" },
+  { key: "makhorijulHuruf", label: "Makhorijul Huruf" },
+  { key: "adab", label: "Adab" },
+] as const;
 
 export default function PenilaianManagement() {
   const { toast } = useToast();
@@ -21,6 +32,38 @@ export default function PenilaianManagement() {
   const [statusFilter, setStatusFilter] = useState("semua");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [editing, setEditing] = useState<Assessment | null>(null);
+  const [editForm, setEditForm] = useState({ tajwid: 0, kelancaran: 0, makhorijulHuruf: 0, adab: 0, notes: "" });
+
+  const openEdit = (a: Assessment) => {
+    setEditing(a);
+    setEditForm({
+      tajwid: a.tajwid,
+      kelancaran: a.kelancaran,
+      makhorijulHuruf: a.makhorijulHuruf,
+      adab: a.adab,
+      notes: a.notes ?? "",
+    });
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!editing) throw new Error("Tidak ada penilaian dipilih");
+      await apiRequest("PATCH", `/api/assessments/${editing.id}`, {
+        tajwid: editForm.tajwid,
+        kelancaran: editForm.kelancaran,
+        makhorijulHuruf: editForm.makhorijulHuruf,
+        adab: editForm.adab,
+        notes: editForm.notes.trim() || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
+      toast({ title: "Berhasil", description: "Penilaian diperbarui" });
+      setEditing(null);
+    },
+    onError: (error: Error) => toast({ title: "Gagal", description: error.message, variant: "destructive" }),
+  });
 
   const getStudentName = (id: string) => students?.find(s => s.id === id)?.name || "-";
   const getStudentNim = (id: string) => students?.find(s => s.id === id)?.nim || "-";
@@ -109,11 +152,12 @@ export default function PenilaianManagement() {
                 <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Adab</th>
                 <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Total</th>
                 <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Status</th>
+                <th className="text-left py-3 px-4 font-medium" style={{ color: "#888" }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                [1, 2].map(i => <tr key={i}><td colSpan={8} className="py-4 px-4"><div className="h-8 bg-gray-100 rounded animate-pulse" /></td></tr>)
+                [1, 2].map(i => <tr key={i}><td colSpan={9} className="py-4 px-4"><div className="h-8 bg-gray-100 rounded animate-pulse" /></td></tr>)
               ) : paged.map(a => (
                 <tr key={a.id} style={{ borderBottom: "1px solid #f0ede6" }} className="hover:bg-[#faf8f3] transition-colors">
                   <td className="py-3 px-4 font-medium" style={{ color: "#1A1A1A" }}>{getStudentName(a.studentId)}</td>
@@ -124,10 +168,21 @@ export default function PenilaianManagement() {
                   <td className="py-3 px-4 font-mono" style={{ color: "#84B179" }}>{a.adab}</td>
                   <td className="py-3 px-4 font-bold" style={{ color: a.passed ? "#059669" : "#D97706" }}>{a.totalScore}</td>
                   <td className="py-3 px-4"><StatusBadge status={a.passed ? "lulus" : "tidak_lulus"} /></td>
+                  <td className="py-3 px-4">
+                    <button
+                      data-testid={`edit-assessment-${a.id}`}
+                      onClick={() => openEdit(a)}
+                      className="p-1.5 rounded-lg hover:bg-green-50 transition-colors"
+                      style={{ color: "#84B179" }}
+                      title="Koreksi penilaian"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {!isLoading && filtered.length === 0 && (
-                <tr><td colSpan={8} className="py-12 text-center" style={{ color: "#888" }}>Belum ada data penilaian</td></tr>
+                <tr><td colSpan={9} className="py-12 text-center" style={{ color: "#888" }}>Belum ada data penilaian</td></tr>
               )}
             </tbody>
           </table>
@@ -142,6 +197,61 @@ export default function PenilaianManagement() {
           />
         )}
       </div>
+
+      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+        <DialogContent className="rounded-2xl" style={{ background: "#fff" }}>
+          <DialogHeader>
+            <DialogTitle style={{ color: "#1A1A1A" }}>Koreksi Penilaian</DialogTitle>
+            <DialogDescription style={{ color: "#888" }}>
+              {editing && `${getStudentName(editing.studentId)} — dinilai oleh ${getInstructorName(editing.instructorId)}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              {SCORE_FIELDS.map(f => (
+                <div key={f.key}>
+                  <Label className="text-xs font-medium" style={{ color: "#666" }}>{f.label}</Label>
+                  <Input
+                    data-testid={`input-edit-${f.key}`}
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={editForm[f.key]}
+                    onChange={(e) => setEditForm({ ...editForm, [f.key]: Math.max(0, Math.min(100, Number(e.target.value))) })}
+                    className="mt-1 rounded-xl h-10"
+                    style={{ background: "#faf8f3", borderColor: "#e8e4db" }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div>
+              <Label className="text-xs font-medium" style={{ color: "#666" }}>Catatan</Label>
+              <Textarea
+                value={editForm.notes}
+                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                className="mt-1 rounded-xl"
+                rows={3}
+                style={{ background: "#faf8f3", borderColor: "#e8e4db" }}
+              />
+            </div>
+            <p className="text-xs" style={{ color: "#888" }}>
+              Total skor dan status lulus dihitung ulang otomatis berdasarkan nilai baru.
+            </p>
+          </div>
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" onClick={() => setEditing(null)} className="rounded-xl">Batal</Button>
+            <Button
+              data-testid="button-save-assessment"
+              onClick={() => updateMutation.mutate()}
+              disabled={updateMutation.isPending}
+              className="rounded-xl"
+              style={{ background: "#84B179", color: "#fff" }}
+            >
+              {updateMutation.isPending ? "Menyimpan..." : "Simpan Perubahan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

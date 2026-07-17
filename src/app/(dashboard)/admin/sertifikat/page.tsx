@@ -1,34 +1,66 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Award, Download, FileText } from "lucide-react";
-import type { User, Assessment } from "@shared/schema";
+import { Award, CheckCircle2, Download, FileText, Loader2 } from "lucide-react";
+import type { User, Assessment, Payment, Certificate } from "@shared/schema";
+import { queryClient } from "@/lib/queryClient";
+import { backfillCertificate, getCertificateBackfillCandidates } from "@/lib/certificate-client";
 
 export default function SertifikatManagement() {
   const { toast } = useToast();
 
   const { data: assessments, isLoading: isLoadingAssessments } = useQuery<Assessment[]>({ queryKey: ["/api/assessments"] });
   const { data: students, isLoading: isLoadingStudents } = useQuery<Omit<User, "password">[]>({ queryKey: ["/api/users", "?role=mahasiswa"] });
-  const isLoading = isLoadingAssessments || isLoadingStudents;
+  const { data: payments, isLoading: isLoadingPayments } = useQuery<Payment[]>({ queryKey: ["/api/payments"] });
+  const { data: certificates, isLoading: isLoadingCertificates } = useQuery<Certificate[]>({ queryKey: ["/api/certificates"] });
+  const isLoading = isLoadingAssessments || isLoadingStudents || isLoadingPayments || isLoadingCertificates;
 
-  const passedStudents = assessments?.filter(a => a.passed) || [];
+  const eligibleStudents = getCertificateBackfillCandidates(
+    assessments ?? [],
+    payments ?? [],
+    [],
+  );
+  const backfillCandidates = getCertificateBackfillCandidates(
+    assessments ?? [],
+    payments ?? [],
+    certificates ?? [],
+  );
   const getStudent = (id: string) => students?.find(s => s.id === id);
+  const getCertificate = (studentId: string) => certificates?.find((certificate) => certificate.studentId === studentId);
+
+  const backfillMutation = useMutation({
+    mutationFn: async (items: Assessment[]) => {
+      let completed = 0;
+      for (const assessment of items) {
+        await backfillCertificate<Certificate>(assessment.studentId);
+        completed++;
+      }
+      return completed;
+    },
+    onSuccess: (completed) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/certificates"] });
+      toast({ title: "Backfill selesai", description: `${completed} sertifikat diterbitkan` });
+    },
+    onError: (error: Error) => toast({ title: "Backfill gagal", description: error.message, variant: "destructive" }),
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <p className="text-sm" style={{ color: "#888" }}>
-          {passedStudents.length} mahasiswa berhak mendapatkan sertifikat
+          {eligibleStudents.length} mahasiswa memenuhi syarat · {backfillCandidates.length} perlu backfill
         </p>
         <Button
           data-testid="button-bulk-generate"
           variant="outline"
           className="rounded-xl h-10 text-xs"
-          onClick={() => toast({ title: "Info", description: "Fitur generate sertifikat massal akan segera tersedia" })}
+          onClick={() => backfillMutation.mutate(backfillCandidates)}
+          disabled={backfillMutation.isPending || backfillCandidates.length === 0}
         >
-          <FileText className="w-3.5 h-3.5 mr-1.5" /> Generate Semua
+          {backfillMutation.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 mr-1.5" />}
+          Backfill Semua
         </Button>
       </div>
 
@@ -47,17 +79,18 @@ export default function SertifikatManagement() {
               </div>
             </div>
           ))}
-         </div>
-      ) : passedStudents.length === 0 ? (
+        </div>
+      ) : eligibleStudents.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Award className="w-16 h-16 mb-4" style={{ color: "#ccc" }} />
           <h3 className="text-lg font-semibold mb-2" style={{ color: "#1A1A1A" }}>Belum Ada Sertifikat</h3>
-          <p className="text-sm" style={{ color: "#888" }}>Belum ada mahasiswa yang dinyatakan lulus</p>
+          <p className="text-sm" style={{ color: "#888" }}>Belum ada mahasiswa yang lulus dan pembayarannya lunas</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {passedStudents.map(a => {
+          {eligibleStudents.map(a => {
             const student = getStudent(a.studentId);
+            const certificate = getCertificate(a.studentId);
             return (
               <div key={a.id} className="rounded-2xl border p-5" style={{ background: "#fff", borderColor: "#e8e4db" }}>
                 <div className="flex items-start gap-4">
@@ -67,16 +100,23 @@ export default function SertifikatManagement() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold" style={{ color: "#1A1A1A" }}>{student?.name}</p>
                     <p className="text-xs" style={{ color: "#888" }}>NIM: {student?.nim} · {student?.faculty}</p>
-                    <p className="text-xs mt-1" style={{ color: "#059669" }}>Skor: {a.totalScore}/100 · Lulus</p>
+                    <p className="text-xs mt-1" style={{ color: "#059669" }}>Skor: {a.totalScore}/100 · Lulus · Lunas</p>
+                    <p className="text-[11px] mt-1" style={{ color: certificate ? "#059669" : "#D97706" }}>
+                      {certificate ? `Terbit: ${certificate.certificateNumber}` : "Belum diterbitkan"}
+                    </p>
                   </div>
                   <Button
                     data-testid={`download-cert-${a.id}`}
                     variant="outline"
                     size="sm"
                     className="rounded-lg"
-                    onClick={() => window.open(`/certificate?studentId=${a.studentId}`, "_blank")}
+                    onClick={() => certificate
+                      ? window.open(`/certificate?studentId=${a.studentId}`, "_blank")
+                      : backfillMutation.mutate([a])}
+                    disabled={backfillMutation.isPending}
+                    title={certificate ? "Buka sertifikat" : "Terbitkan sertifikat"}
                   >
-                    <Download className="w-3.5 h-3.5" />
+                    {certificate ? <Download className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                   </Button>
                 </div>
               </div>

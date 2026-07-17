@@ -20,8 +20,8 @@ export default function GantiPasswordPage() {
       toast({ title: "Tidak sama", description: "Konfirmasi password tidak cocok", variant: "destructive" });
       return;
     }
-    if (form.newPassword.length < 6) {
-      toast({ title: "Terlalu pendek", description: "Password baru minimal 6 karakter", variant: "destructive" });
+    if (form.newPassword.length < 12) {
+      toast({ title: "Terlalu pendek", description: "Password baru minimal 12 karakter", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -73,7 +73,7 @@ export default function GantiPasswordPage() {
             onChange={(v) => setForm({ ...form, newPassword: v })}
             show={show.next}
             onToggle={() => setShow({ ...show, next: !show.next })}
-            hint="Minimal 6 karakter"
+            hint="Minimal 12 karakter"
           />
           <PasswordField
             label="Konfirmasi Password Baru"

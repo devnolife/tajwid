@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-client";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/status-badge";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { uploadPaymentProof } from "@/lib/payment-client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Upload, Clock, CheckCircle, Wallet, CalendarDays, FileText, Loader2, ImageIcon, X } from "lucide-react";
@@ -44,16 +45,7 @@ export default function Pembayaran() {
   const uploadMutation = useMutation({
     mutationFn: async (paymentId: string) => {
       if (!selectedFile) throw new Error("Pilih file bukti pembayaran terlebih dahulu");
-      const fd = new FormData();
-      fd.append("file", selectedFile);
-      fd.append("folder", "payments");
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Upload gagal");
-      await apiRequest("PATCH", `/api/payments/${paymentId}`, {
-        status: "menunggu_verifikasi",
-        proofUrl: data.url,
-      });
+      await uploadPaymentProof(paymentId, selectedFile);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
@@ -172,6 +164,19 @@ export default function Pembayaran() {
           {/* Action Buttons + Upload */}
           {(payment.status === "belum_bayar" || payment.status === "ditolak") && (
             <div className="space-y-4">
+              <div className="rounded-xl border p-4" style={{ borderColor: "#e8e4db", background: "#faf8f3" }}>
+                <p className="text-sm font-semibold mb-2" style={{ color: "#1A1A1A" }}>Cara Pembayaran</p>
+                <ul className="text-sm space-y-1.5" style={{ color: "#666" }}>
+                  <li className="flex items-start gap-2">
+                    <CreditCard className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#84B179" }} />
+                    <span><span className="font-medium">Transfer:</span> transfer sesuai nominal tagihan, lalu upload bukti transfer di bawah untuk diverifikasi admin.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Wallet className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#84B179" }} />
+                    <span><span className="font-medium">Cash:</span> bayar langsung ke admin. Setelah admin mengonfirmasi, status pembayaran otomatis menjadi lunas.</span>
+                  </li>
+                </ul>
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -220,15 +225,6 @@ export default function Pembayaran() {
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
-                  data-testid="button-bayar"
-                  variant="outline"
-                  className="rounded-xl h-11 w-full sm:w-auto"
-                  onClick={() => toast({ title: "Info", description: "Integrasi payment gateway akan segera tersedia" })}
-                >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Bayar via Gateway
-                </Button>
-                <Button
                   data-testid="button-upload-bukti"
                   className="rounded-xl h-11 w-full sm:flex-1"
                   style={{ background: "#84B179", color: "#fff" }}
@@ -246,6 +242,11 @@ export default function Pembayaran() {
             <a href={payment.proofUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-medium hover:underline" style={{ color: "#84B179" }}>
               <FileText className="w-4 h-4" /> Lihat bukti yang dikirim
             </a>
+          )}
+          {payment.status === "lunas" && payment.method === "cash" && (
+            <div className="inline-flex items-center gap-2 text-sm font-medium" style={{ color: "#84B179" }}>
+              <Wallet className="w-4 h-4" /> Dibayar secara cash (dikonfirmasi admin)
+            </div>
           )}
           {payment.status === "menunggu_verifikasi" && (
             <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: "#FEF3C7" }}>

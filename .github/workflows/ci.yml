@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tajwid
+          POSTGRES_PASSWORD: test-password
+          POSTGRES_DB: tajwid_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tajwid -d tajwid_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://tajwid:test-password@127.0.0.1:5432/tajwid_test
+      DATABASE_SSL: "false"
+      AUTH_SECRET: ci-only-auth-secret-with-at-least-32-characters
+      NEXTAUTH_SECRET: ci-only-auth-secret-with-at-least-32-characters
+      CERTIFICATE_API_KEY: ci-only-certificate-key-with-at-least-32-characters
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run db:migrate
+      - run: npm run test:integration
+      - run: npm run build
+      - run: npm run db:seed
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

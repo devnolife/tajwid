@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Award, Download, Lock, Loader2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +14,6 @@ import type { Assessment, Certificate, Payment } from "@shared/schema";
 export default function Sertifikat() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const certRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
 
@@ -22,7 +21,7 @@ export default function Sertifikat() {
     queryKey: ["/api/assessments", `?studentId=${user?.id}`],
   });
 
-  const { data: certificate, isLoading: loadingCert } = useQuery<Certificate | null>({
+  const { data: certificate, isLoading: loadingCert, refetch: refetchCertificate } = useQuery<Certificate | null>({
     queryKey: ["/api/certificates", user?.id],
     queryFn: async () => {
       const res = await fetch(`/api/certificates?studentId=${user?.id}`);
@@ -33,25 +32,6 @@ export default function Sertifikat() {
 
   const { data: payments, isLoading: loadingPayments } = useQuery<Payment[]>({
     queryKey: ["/api/payments", `?studentId=${user?.id}`],
-  });
-
-  const generateCert = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/certificates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentId: user?.id }),
-      });
-      if (!res.ok) throw new Error("Gagal generate sertifikat");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/certificates", user?.id] });
-      toast({ title: "Berhasil", description: "Sertifikat berhasil digenerate!" });
-    },
-    onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
   });
 
   const downloadPdf = async () => {
@@ -269,19 +249,15 @@ export default function Sertifikat() {
         {/* Actions */}
         <div className="px-6 pb-6 flex flex-wrap gap-3">
           {!certificate?.certificateNumber ? (
-            <Button
-              className="rounded-xl h-11"
-              style={{ background: "#84B179", color: "#fff" }}
-              onClick={() => generateCert.mutate()}
-              disabled={generateCert.isPending}
-            >
-              {generateCert.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Award className="w-4 h-4 mr-2" />
-              )}
-              Generate Sertifikat
-            </Button>
+            <div className="rounded-xl border p-4 flex flex-wrap items-center gap-3" style={{ borderColor: "#FBBF24", background: "#FFFBEB" }}>
+              <div className="flex-1 min-w-[220px]">
+                <p className="text-sm font-semibold text-amber-800">Sertifikat sedang diproses otomatis</p>
+                <p className="text-xs text-amber-700 mt-1">Jika belum muncul setelah pembayaran disetujui, minta admin menjalankan backfill sertifikat.</p>
+              </div>
+              <Button variant="outline" className="rounded-xl" onClick={() => refetchCertificate()}>
+                Periksa Lagi
+              </Button>
+            </div>
           ) : (
             <Button
               data-testid="button-download-certificate"

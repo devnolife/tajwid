@@ -2,13 +2,24 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { reviewPayment, type PaymentReviewAction } from "@/lib/payment-client";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, XCircle, Filter, Loader2, Search, Download } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { CheckCircle, XCircle, Filter, Loader2, Search, Download, Banknote } from "lucide-react";
 import type { User, Payment } from "@shared/schema";
 import { getMahasiswaPhotoUrl } from "@/lib/mahasiswa-photo";
 import { Pagination, usePagination } from "@/components/pagination";
@@ -20,16 +31,15 @@ export default function PembayaranManagement() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [cashConfirmPayment, setCashConfirmPayment] = useState<Payment | null>(null);
 
   const { data: payments, isLoading } = useQuery<Payment[]>({ queryKey: ["/api/payments"] });
   const { data: students } = useQuery<Omit<User, "password">[]>({ queryKey: ["/api/users", "?role=mahasiswa"] });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, action }: { id: string; action: PaymentReviewAction }) => {
       setUpdatingId(id);
-      const data: any = { status };
-      if (status === "lunas") data.paidAt = new Date().toISOString();
-      await apiRequest("PATCH", `/api/payments/${id}`, data);
+      await reviewPayment<Payment>(id, action);
     },
     onSuccess: () => {
       setUpdatingId(null);
@@ -153,34 +163,46 @@ export default function PembayaranManagement() {
                       <a href={p.proofUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-medium hover:underline" style={{ color: "#84B179" }}>
                         Lihat Bukti
                       </a>
+                    ) : p.method === "cash" ? (
+                      <span className="text-xs font-medium" style={{ color: "#84B179" }}>Cash</span>
                     ) : (
                       <span className="text-xs" style={{ color: "#bbb" }}>-</span>
                     )}
                   </td>
                   <td className="py-3 px-4">
-                    {(p.status === "menunggu_verifikasi" || p.status === "ditolak") && (
+                    {p.status === "menunggu_verifikasi" && (
                       <div className="flex gap-1">
                         <button
                           data-testid={`verify-payment-${p.id}`}
-                          onClick={() => updateMutation.mutate({ id: p.id, status: "lunas" })}
+                          onClick={() => updateMutation.mutate({ id: p.id, action: "approve" })}
                           className="p-1.5 rounded-lg hover:bg-green-50 transition-colors text-green-600"
                           disabled={updatingId === p.id}
                           title="Setujui"
                         >
                           {updatingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                         </button>
-                        {p.status === "menunggu_verifikasi" && (
-                          <button
-                            data-testid={`reject-payment-${p.id}`}
-                            onClick={() => updateMutation.mutate({ id: p.id, status: "ditolak" })}
-                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500"
-                            disabled={updatingId === p.id}
-                            title="Tolak"
-                          >
-                            {updatingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                          </button>
-                        )}
+                        <button
+                          data-testid={`reject-payment-${p.id}`}
+                          onClick={() => updateMutation.mutate({ id: p.id, action: "reject" })}
+                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500"
+                          disabled={updatingId === p.id}
+                          title="Tolak"
+                        >
+                          {updatingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                        </button>
                       </div>
+                    )}
+                    {(p.status === "belum_bayar" || p.status === "ditolak") && (
+                      <button
+                        data-testid={`confirm-cash-${p.id}`}
+                        onClick={() => setCashConfirmPayment(p)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium hover:bg-green-50 transition-colors text-green-700 border border-green-200"
+                        disabled={updatingId === p.id}
+                        title="Konfirmasi pembayaran cash"
+                      >
+                        {updatingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Banknote className="w-3.5 h-3.5" />}
+                        Konfirmasi Cash
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -201,6 +223,42 @@ export default function PembayaranManagement() {
           />
         )}
       </div>
+
+      <AlertDialog
+        open={!!cashConfirmPayment}
+        onOpenChange={(open) => { if (!open) setCashConfirmPayment(null); }}
+      >
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Pembayaran Cash</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cashConfirmPayment && (
+                <>
+                  Konfirmasi bahwa <span className="font-semibold">{getStudentName(cashConfirmPayment.studentId)}</span> ({getStudentNim(cashConfirmPayment.studentId)}) telah membayar secara cash sebesar{" "}
+                  <span className="font-semibold">Rp {Number(cashConfirmPayment.amount).toLocaleString("id-ID")}</span>?
+                  Status akan langsung menjadi lunas dan sertifikat diterbitkan otomatis. Tindakan ini tidak dapat dibatalkan.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="confirm-cash-submit"
+              className="rounded-xl"
+              style={{ background: "#84B179", color: "#fff" }}
+              onClick={() => {
+                if (cashConfirmPayment) {
+                  updateMutation.mutate({ id: cashConfirmPayment.id, action: "confirm_cash" });
+                }
+                setCashConfirmPayment(null);
+              }}
+            >
+              Ya, Konfirmasi Lunas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { Search, Filter, Users, CheckCircle2, XCircle, Clock, ChevronRight, Layo
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getMahasiswaPhotoUrl } from "@/lib/mahasiswa-photo";
-import type { User, Payment, Assessment, Schedule } from "@shared/schema";
+import type { User, Assessment, Schedule } from "@shared/schema";
 
 const C = {
   emerald: "hsl(168 50% 22%)",
@@ -22,19 +22,11 @@ const C = {
 };
 
 type StatusKey = "lulus" | "perlu_mengulang" | "belum_tes";
-type PayKey = "lunas" | "menunggu_verifikasi" | "belum_bayar" | "belum_diterbitkan";
 
 const statusMeta: Record<StatusKey, { label: string; bg: string; color: string }> = {
   lulus: { label: "Lulus", bg: `${C.sage}22`, color: C.sage },
   perlu_mengulang: { label: "Perlu Mengulang", bg: `${C.gold}1f`, color: C.goldDeep },
   belum_tes: { label: "Belum Diuji", bg: `${C.gold}1f`, color: C.goldDeep },
-};
-
-const payMeta: Record<PayKey, { label: string; bg: string; color: string }> = {
-  lunas: { label: "Lunas", bg: `${C.sage}22`, color: C.sage },
-  menunggu_verifikasi: { label: "Menunggu Verifikasi", bg: `${C.gold}1f`, color: C.goldDeep },
-  belum_bayar: { label: "Belum Bayar", bg: `${C.rose}1f`, color: C.rose },
-  belum_diterbitkan: { label: "Belum Diterbitkan", bg: `hsl(40 22% 88%)`, color: `hsl(168 14% 45%)` },
 };
 
 export default function DaftarMahasiswa() {
@@ -47,7 +39,6 @@ export default function DaftarMahasiswa() {
     queryKey: ["/api/users", "?role=mahasiswa"],
   });
 
-  const { data: allPayments } = useQuery<Payment[]>({ queryKey: ["/api/payments"] });
   const { data: allAssessments } = useQuery<Assessment[]>({ queryKey: ["/api/assessments"] });
   const { data: allSchedules } = useQuery<Schedule[]>({ queryKey: ["/api/schedules"] });
 
@@ -56,15 +47,10 @@ export default function DaftarMahasiswa() {
     if (a) return a.passed ? "lulus" : "perlu_mengulang";
     return "belum_tes";
   };
-  const getPaymentStatus = (studentId: string): PayKey => {
-    const p = allPayments?.find((x) => x.studentId === studentId);
-    if (!p) return "belum_diterbitkan";
-    return (p.status as PayKey) || "belum_bayar";
-  };
   const getAssessment = (studentId: string) => allAssessments?.find((a) => a.studentId === studentId);
   const getNextSchedule = (studentId: string) => {
     const upcoming = allSchedules
-      ?.filter((s) => s.studentId === studentId)
+      ?.filter((s) => s.studentId === studentId && s.status === "scheduled")
       .map((s) => ({ ...s, _d: new Date(s.date) }))
       .sort((a, b) => a._d.getTime() - b._d.getTime());
     return upcoming?.[0];
@@ -223,17 +209,17 @@ export default function DaftarMahasiswa() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((s, idx) => {
             const status = getStudentStatus(s.id);
-            const pay = getPaymentStatus(s.id);
             const a = getAssessment(s.id);
             const next = getNextSchedule(s.id);
             const sm = statusMeta[status];
-            const pm = payMeta[pay];
 
             return (
               <button
                 key={s.id}
                 data-testid={`card-student-${s.id}`}
-                onClick={() => router.push(`/instruktur/penilaian?studentId=${s.id}`)}
+                onClick={() => router.push(next
+                  ? `/instruktur/penilaian?studentId=${s.id}&scheduleId=${next.id}`
+                  : `/instruktur/jadwal-mengajar?createFor=${s.id}`)}
                 className="group relative text-left rounded-2xl border p-5 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 overflow-hidden"
                 style={{
                   background: "#fff",
@@ -275,9 +261,6 @@ export default function DaftarMahasiswa() {
                   <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full" style={{ background: sm.bg, color: sm.color }}>
                     {sm.label}
                   </span>
-                  <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full" style={{ background: pm.bg, color: pm.color }}>
-                    Bayar: {pm.label}
-                  </span>
                 </div>
 
                 <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px]" style={{ borderColor: `${C.taupe}88` }}>
@@ -293,7 +276,7 @@ export default function DaftarMahasiswa() {
                     <span className="text-muted-foreground italic">Belum dijadwalkan</span>
                   )}
                   <span className="inline-flex items-center gap-1 font-semibold" style={{ color: C.emerald }}>
-                    {a ? (a.passed ? "Lihat" : "Uji ulang") : "Mulai uji"} <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                    {next ? (a ? "Uji sesi" : "Mulai uji") : "Buat jadwal"} <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                   </span>
                 </div>
               </button>
@@ -312,7 +295,6 @@ export default function DaftarMahasiswa() {
                   <th className="text-left py-3 px-4 font-semibold text-[11px] uppercase tracking-wider" style={{ color: C.emeraldSoft }}>Mahasiswa</th>
                   <th className="text-left py-3 px-4 font-semibold text-[11px] uppercase tracking-wider" style={{ color: C.emeraldSoft }}>NIM</th>
                   <th className="text-left py-3 px-4 font-semibold text-[11px] uppercase tracking-wider" style={{ color: C.emeraldSoft }}>Fakultas</th>
-                  <th className="text-left py-3 px-4 font-semibold text-[11px] uppercase tracking-wider" style={{ color: C.emeraldSoft }}>Pembayaran</th>
                   <th className="text-left py-3 px-4 font-semibold text-[11px] uppercase tracking-wider" style={{ color: C.emeraldSoft }}>Status</th>
                   <th className="text-right py-3 px-4 font-semibold text-[11px] uppercase tracking-wider" style={{ color: C.emeraldSoft }}>Skor</th>
                 </tr>
@@ -320,15 +302,16 @@ export default function DaftarMahasiswa() {
               <tbody>
                 {filtered.map((s) => {
                   const status = getStudentStatus(s.id);
-                  const pay = getPaymentStatus(s.id);
                   const a = getAssessment(s.id);
+                  const next = getNextSchedule(s.id);
                   const sm = statusMeta[status];
-                  const pm = payMeta[pay];
                   return (
                     <tr
                       key={s.id}
                       data-testid={`row-student-${s.id}`}
-                      onClick={() => router.push(`/instruktur/penilaian?studentId=${s.id}`)}
+                      onClick={() => router.push(next
+                        ? `/instruktur/penilaian?studentId=${s.id}&scheduleId=${next.id}`
+                        : `/instruktur/jadwal-mengajar?createFor=${s.id}`)}
                       className="cursor-pointer transition-colors hover:bg-[hsl(42_38%_94%)]"
                       style={{ borderBottom: `1px solid ${C.taupe}55` }}
                     >
@@ -355,11 +338,6 @@ export default function DaftarMahasiswa() {
                       </td>
                       <td className="py-3 px-4 font-mono text-xs" style={{ color: C.emeraldSoft }}>{s.nim ?? "—"}</td>
                       <td className="py-3 px-4 text-xs text-muted-foreground">{s.faculty ?? "—"}</td>
-                      <td className="py-3 px-4">
-                        <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full" style={{ background: pm.bg, color: pm.color }}>
-                          {pm.label}
-                        </span>
-                      </td>
                       <td className="py-3 px-4">
                         <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full" style={{ background: sm.bg, color: sm.color }}>
                           {sm.label}

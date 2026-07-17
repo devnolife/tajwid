@@ -1,11 +1,26 @@
 import { NextResponse } from "next/server";
 import { storage } from "@/lib/db/storage";
-
-const API_KEY = process.env.CERTIFICATE_API_KEY || "tajwid-unismuh-2026";
+import {
+  getCertificateIntegrationKey,
+  isValidIntegrationKey,
+} from "@/lib/security/integration-key";
 
 export async function GET(request: Request) {
+  let configuredKey: string | null;
+  try {
+    configuredKey = getCertificateIntegrationKey();
+  } catch {
+    configuredKey = null;
+  }
+  if (!configuredKey) {
+    return NextResponse.json(
+      { found: false, message: "Integrasi sertifikat belum dikonfigurasi" },
+      { status: 503 },
+    );
+  }
+
   const apiKey = request.headers.get("x-api-key");
-  if (!apiKey || apiKey !== API_KEY) {
+  if (!isValidIntegrationKey(apiKey, configuredKey)) {
     return NextResponse.json(
       { found: false, message: "Unauthorized: API key tidak valid" },
       { status: 401 }

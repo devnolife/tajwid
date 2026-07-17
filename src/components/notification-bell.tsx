@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, Check, CheckCheck, X, Calendar, CreditCard, FileText, Award, Info } from "lucide-react";
+import { useAuth } from "@/lib/auth-client";
 import type { Notification } from "@shared/schema";
 
 const POLL_MS = 30000;
@@ -15,6 +16,20 @@ const TYPE_META: Record<string, { icon: any; color: string; bg: string }> = {
   system: { icon: Info, color: "hsl(190 28% 35%)", bg: "hsl(190 28% 35% / 0.08)" },
   info: { icon: Info, color: "hsl(190 28% 35%)", bg: "hsl(190 28% 35% / 0.08)" },
 };
+
+// Link fallback per tipe notifikasi ketika notifikasi tidak menyertakan link.
+const FALLBACK_LINKS: Record<string, Record<string, string>> = {
+  payment: { admin: "/admin/pembayaran", mahasiswa: "/mahasiswa/pembayaran" },
+  schedule: { admin: "/admin/jadwal", instruktur: "/instruktur/jadwal-mengajar", mahasiswa: "/mahasiswa/jadwal" },
+  result: { admin: "/admin/penilaian", instruktur: "/instruktur/penilaian", mahasiswa: "/mahasiswa/hasil" },
+  certificate: { admin: "/admin/sertifikat", mahasiswa: "/mahasiswa/sertifikat" },
+};
+
+function resolveLink(n: Notification, role?: string): string | null {
+  if (n.link) return n.link;
+  if (!role) return null;
+  return FALLBACK_LINKS[n.type]?.[role] ?? null;
+}
 
 function timeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -29,6 +44,7 @@ function timeAgo(date: Date): string {
 }
 
 export default function NotificationBell() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
@@ -138,6 +154,7 @@ export default function NotificationBell() {
               items.map(n => {
                 const meta = TYPE_META[n.type] || TYPE_META.info;
                 const Icon = meta.icon;
+                const link = resolveLink(n, user?.role);
                 const Body = (
                   <div
                     className="px-4 py-3 flex gap-3 transition-colors hover:bg-[hsl(40_22%_92%/0.5)] cursor-pointer relative group"
@@ -180,10 +197,10 @@ export default function NotificationBell() {
                     </div>
                   </div>
                 );
-                return n.link ? (
+                return link ? (
                   <Link
                     key={n.id}
-                    href={n.link}
+                    href={link}
                     onClick={() => { if (!n.read) markRead(n.id); setOpen(false); }}
                   >
                     {Body}

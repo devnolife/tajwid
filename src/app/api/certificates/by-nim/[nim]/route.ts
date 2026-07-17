@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { certificates } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
+import {
+  getCertificateIntegrationKey,
+  isValidIntegrationKey,
+} from "@/lib/security/integration-key";
+import { logger } from "@/lib/logger";
 
 /**
  * Public lookup endpoint: GET /api/certificates/by-nim/{nim}
@@ -17,7 +22,7 @@ import { eq, desc } from "drizzle-orm";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Accept",
+  "Access-Control-Allow-Headers": "Content-Type, Accept, X-API-Key",
 } as const;
 
 export async function OPTIONS() {
@@ -25,9 +30,33 @@ export async function OPTIONS() {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ nim: string }> }
 ) {
+  let configuredKey: string | null;
+  try {
+    configuredKey = getCertificateIntegrationKey();
+  } catch {
+    configuredKey = null;
+  }
+  if (!configuredKey) {
+    return NextResponse.json(
+      { valid: false, message: "Integrasi sertifikat belum dikonfigurasi" },
+      { status: 503, headers: CORS_HEADERS },
+    );
+  }
+  if (
+    !isValidIntegrationKey(
+      request.headers.get("x-api-key"),
+      configuredKey,
+    )
+  ) {
+    return NextResponse.json(
+      { valid: false, message: "Unauthorized" },
+      { status: 401, headers: CORS_HEADERS },
+    );
+  }
+
   const { nim } = await params;
   const trimmed = (nim || "").trim();
 
@@ -72,9 +101,10 @@ export async function GET(
       },
       { headers: CORS_HEADERS }
     );
-  } catch (e: any) {
+  } catch (error) {
+    logger.error("certificate.lookup_by_nim.failed", { error });
     return NextResponse.json(
-      { valid: false, message: e.message },
+      { valid: false, message: "Terjadi kesalahan server" },
       { status: 500, headers: CORS_HEADERS }
     );
   }

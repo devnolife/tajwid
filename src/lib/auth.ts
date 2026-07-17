@@ -2,22 +2,19 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { loginSchema } from "@shared/schema";
 import { storage } from "@/lib/db/storage";
-import { md5Hash } from "@/lib/md5";
 import { fetchMahasiswaByNim } from "@/lib/graphql-campus";
+import {
+  hashPassword,
+  verifyAndUpgradePassword,
+  verifyPassword,
+} from "@/lib/security/password";
+import { FixedWindowRateLimiter } from "@/lib/security/rate-limit";
+import { logger } from "@/lib/logger";
 
-// Akun uji coba (development) — aktif ketika DB/API tidak tersedia
-const TEST_ACCOUNTS: Record<string, { password: string; name: string; role: string; nim?: string; program?: string }> = {
-  admin: {
-    password: "admin123",
-    name: "Administrator Sistem",
-    role: "admin",
-  },
-  ustadz_hamid: {
-    password: "password123",
-    name: "Ustadz Abdul Hamid, Lc.",
-    role: "instruktur",
-  },
-};
+const loginRateLimiter = new FixedWindowRateLimiter({
+  limit: 5,
+  windowMs: 15 * 60 * 1_000,
+});
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -26,24 +23,55 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
         const { username, password } = parsed.data;
+        const forwardedFor = request.headers.get("x-forwarded-for")
+          ?.split(",")[0]
+          ?.trim();
+        const clientAddress = forwardedFor || request.headers.get("x-real-ip") || "unknown";
+        const rateLimitKey = `${clientAddress}:${username.toLowerCase()}`;
+        const rateLimit = loginRateLimiter.consume(rateLimitKey);
+        if (!rateLimit.allowed) {
+          logger.warn("auth.login.rate_limited", {
+            username,
+            clientAddress,
+            retryAfterSeconds: rateLimit.retryAfterSeconds,
+          });
+          return null;
+        }
+        const completeLogin = <T extends { role: string }>(user: T): T => {
+          loginRateLimiter.reset(rateLimitKey);
+          logger.info("auth.login.succeeded", {
+            username,
+            clientAddress,
+            role: user.role,
+          });
+          return user;
+        };
 
         // Auto-detect: jika username berupa angka → mahasiswa (NIM)
         const isMahasiswa = /^\d+$/.test(username);
 
         if (isMahasiswa) {
           const nim = username;
-          const hashedPassword = md5Hash(password);
 
           // Cek di database lokal dulu (skip jika DB tidak tersedia)
           try {
             const user = await storage.getUserByNim(nim);
             if (user) {
-              if (user.password !== hashedPassword || user.role !== "mahasiswa") {
+              if (user.role !== "mahasiswa") {
+                return null;
+              }
+              const valid = await verifyAndUpgradePassword(
+                password,
+                user.password,
+                user.role,
+                (encodedPassword) => storage.updateUser(user.id, { password: encodedPassword }),
+              );
+              if (!valid) {
                 return null;
               }
 
@@ -64,7 +92,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 // GraphQL tidak tersedia — gunakan data lokal
               }
 
-              return {
+              return completeLogin({
                 id: user.id,
                 name: user.name,
                 email: user.email,
@@ -75,7 +103,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 program: user.program,
                 phone: user.phone,
                 specialization: user.specialization,
-              };
+              });
             }
           } catch {
             // DB tidak tersedia — lanjut ke GraphQL
@@ -85,7 +113,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const mahasiswa = await fetchMahasiswaByNim(nim);
 
           if (mahasiswa) {
-            if (hashedPassword !== mahasiswa.passwd) {
+            const upstreamVerification = await verifyPassword(
+              password,
+              mahasiswa.passwd,
+              "mahasiswa",
+            );
+            if (!upstreamVerification.valid) {
               return null;
             }
 
@@ -96,7 +129,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             try {
               const user = await storage.createUser({
                 username: mahasiswa.nim,
-                password: mahasiswa.passwd,
+                password: await hashPassword(password),
                 role: "mahasiswa",
                 name: mahasiswa.nama,
                 nim: mahasiswa.nim,
@@ -107,28 +140,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               userId = user.id;
               userName = user.name;
               userEmail = user.email;
-
-              // Auto-create tagihan default untuk mahasiswa baru
-              try {
-                const settings = await storage.getSettings();
-                const amount = settings?.paymentAmount ?? "25000";
-                const academicYear = settings?.academicYear ?? "2025/2026";
-                const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-                await storage.createPayment({
-                  studentId: user.id,
-                  amount,
-                  dueDate,
-                  description: `Biaya Ujian Tajwid Tahun Akademik ${academicYear}`,
-                  status: "belum_bayar",
-                });
-              } catch (e) {
-                console.warn("[auth] Gagal auto-create tagihan untuk mahasiswa baru:", e);
-              }
             } catch {
               // DB tidak tersedia — tetap return user dari GraphQL
             }
 
-            return {
+            return completeLogin({
               id: userId,
               name: userName,
               email: userEmail,
@@ -139,24 +155,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               program: mahasiswa.prodi,
               phone: mahasiswa.hp,
               specialization: null,
-            };
-          }
-
-          // GraphQL gagal/tidak ditemukan — cek akun uji coba
-          const testAccount = TEST_ACCOUNTS[nim];
-          if (testAccount && testAccount.role === "mahasiswa" && hashedPassword === testAccount.password) {
-            return {
-              id: nim,
-              name: testAccount.name,
-              email: null,
-              role: "mahasiswa",
-              username: nim,
-              nim: testAccount.nim ?? nim,
-              faculty: null,
-              program: testAccount.program ?? null,
-              phone: null,
-              specialization: null,
-            };
+            });
           }
 
           return null;
@@ -166,11 +165,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const user = await storage.getUserByUsername(username);
 
-          if (!user || user.password !== password) {
+          if (!user || user.role === "mahasiswa") {
+            return null;
+          }
+          const valid = await verifyAndUpgradePassword(
+            password,
+            user.password,
+            user.role,
+            (encodedPassword) => storage.updateUser(user.id, { password: encodedPassword }),
+          );
+          if (!valid) {
             return null;
           }
 
-          return {
+          return completeLogin({
             id: user.id,
             name: user.name,
             email: user.email,
@@ -181,24 +189,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             program: user.program,
             phone: user.phone,
             specialization: user.specialization,
-          };
+          });
         } catch {
-          // DB tidak tersedia — cek akun uji coba
-          const testAccount = TEST_ACCOUNTS[username];
-          if (testAccount && testAccount.password === password) {
-            return {
-              id: username,
-              name: testAccount.name,
-              email: null,
-              role: testAccount.role,
-              username: username,
-              nim: testAccount.nim ?? null,
-              faculty: null,
-              program: testAccount.program ?? null,
-              phone: null,
-              specialization: null,
-            };
-          }
           return null;
         }
       },

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { users, payments, schedules, assessments, settings, certificates } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { hashPassword } from "@/lib/security/password";
 
 export async function seedDatabase() {
   console.log("→ Memulai seed database...");
@@ -11,20 +11,20 @@ export async function seedDatabase() {
   }
 
   const studentData = [
-    { username: "2024101001", password: "password123", role: "mahasiswa" as const, name: "Ahmad Fauzan Rizki", nim: "2024101001", faculty: "Fakultas Teknik", program: "Teknik Informatika", email: "ahmad.fauzan@univ.ac.id", phone: "081234567890" },
-    { username: "2024101002", password: "password123", role: "mahasiswa" as const, name: "Siti Nurhaliza Putri", nim: "2024101002", faculty: "Fakultas Ekonomi", program: "Manajemen", email: "siti.nurhaliza@univ.ac.id", phone: "081234567891" },
-    { username: "2024101003", password: "password123", role: "mahasiswa" as const, name: "Muhammad Rafli Hidayat", nim: "2024101003", faculty: "Fakultas Hukum", program: "Ilmu Hukum", email: "rafli.hidayat@univ.ac.id", phone: "081234567892" },
-    { username: "2024101004", password: "password123", role: "mahasiswa" as const, name: "Aisyah Zahra Kamila", nim: "2024101004", faculty: "Fakultas Kedokteran", program: "Pendidikan Dokter", email: "aisyah.zahra@univ.ac.id", phone: "081234567893" },
-    { username: "2024101005", password: "password123", role: "mahasiswa" as const, name: "Dimas Pratama Putra", nim: "2024101005", faculty: "Fakultas Teknik", program: "Teknik Sipil", email: "dimas.pratama@univ.ac.id", phone: "081234567894" },
+    { username: "2024101001", password: await hashPassword("password123"), role: "mahasiswa" as const, name: "Ahmad Fauzan Rizki", nim: "2024101001", faculty: "Fakultas Teknik", program: "Teknik Informatika", email: "ahmad.fauzan@univ.ac.id", phone: "081234567890" },
+    { username: "2024101002", password: await hashPassword("password123"), role: "mahasiswa" as const, name: "Siti Nurhaliza Putri", nim: "2024101002", faculty: "Fakultas Ekonomi", program: "Manajemen", email: "siti.nurhaliza@univ.ac.id", phone: "081234567891" },
+    { username: "2024101003", password: await hashPassword("password123"), role: "mahasiswa" as const, name: "Muhammad Rafli Hidayat", nim: "2024101003", faculty: "Fakultas Hukum", program: "Ilmu Hukum", email: "rafli.hidayat@univ.ac.id", phone: "081234567892" },
+    { username: "2024101004", password: await hashPassword("password123"), role: "mahasiswa" as const, name: "Aisyah Zahra Kamila", nim: "2024101004", faculty: "Fakultas Kedokteran", program: "Pendidikan Dokter", email: "aisyah.zahra@univ.ac.id", phone: "081234567893" },
+    { username: "2024101005", password: await hashPassword("password123"), role: "mahasiswa" as const, name: "Dimas Pratama Putra", nim: "2024101005", faculty: "Fakultas Teknik", program: "Teknik Sipil", email: "dimas.pratama@univ.ac.id", phone: "081234567894" },
   ];
 
   const instructorData = [
-    { username: "ustadz_hamid", password: "password123", role: "instruktur" as const, name: "Ustadz Abdul Hamid, Lc.", specialization: "Tajwid & Qira'at", email: "hamid@univ.ac.id", phone: "081345678901" },
-    { username: "ustadzah_maryam", password: "password123", role: "instruktur" as const, name: "Ustadzah Maryam Hasan, S.Ag.", specialization: "Tahsin Al-Quran", email: "maryam@univ.ac.id", phone: "081345678902" },
+    { username: "ustadz_hamid", password: await hashPassword("password123"), role: "instruktur" as const, name: "Ustadz Abdul Hamid, Lc.", specialization: "Tajwid & Qira'at", email: "hamid@univ.ac.id", phone: "081345678901" },
+    { username: "ustadzah_maryam", password: await hashPassword("password123"), role: "instruktur" as const, name: "Ustadzah Maryam Hasan, S.Ag.", specialization: "Tahsin Al-Quran", email: "maryam@univ.ac.id", phone: "081345678902" },
   ];
 
   const adminData = [
-    { username: "admin", password: "admin123", role: "admin" as const, name: "Administrator Sistem", email: "admin@univ.ac.id", phone: "081456789012" },
+    { username: "admin", password: await hashPassword("admin123"), role: "admin" as const, name: "Administrator Sistem", email: "admin@univ.ac.id", phone: "081456789012" },
   ];
 
   const insertedStudents = await db.insert(users).values(studentData).returning();

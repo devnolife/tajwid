@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-client";
 import { useQuery } from "@tanstack/react-query";
 import { Calendar, MapPin, Clock, User } from "lucide-react";
 import type { Schedule, User as UserType } from "@shared/schema";
+import { selectCurrentSchedule } from "@/lib/schedule-client";
 
 export default function JadwalSaya() {
   const { user } = useAuth();
@@ -22,11 +23,7 @@ export default function JadwalSaya() {
   const sorted = (schedules ?? [])
     .slice()
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const schedule =
-    sorted.find((s: any) => {
-      const active = !s.status || s.status === "scheduled";
-      return active && new Date(s.date).getTime() >= now;
-    }) ?? sorted[sorted.length - 1];
+  const schedule = selectCurrentSchedule(sorted, new Date(now));
 
   if (isLoading) {
     return (

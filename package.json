@@ -7,9 +7,18 @@
     "build": "next build",
     "start": "next start -p 3014",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test",
+    "test:ci": "npm run lint && npm run typecheck && npm test && npm run build",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx --env-file=.env src/lib/db/seed.ts",
-    "db:seed:admin": "tsx --env-file=.env src/lib/db/seed-admin.ts",
+    "db:seed": "node --env-file-if-exists=.env --import tsx src/lib/db/seed.ts",
+    "db:seed:admin": "node --env-file-if-exists=.env --import tsx src/lib/db/seed-admin.ts",
     "test:api": "tsx src/__tests__/api-integration.test.ts"
   },
   "dependencies": {
@@ -74,11 +83,14 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.6",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/typography": "^0.5.15",
     "@types/node": "^20",
     "@types/pg": "^8.11.6",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
+    "@vitest/coverage-v8": "^3.2.7",
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.31.8",
     "eslint": "^9",
@@ -86,6 +98,7 @@
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.5",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.7"
   }
 }

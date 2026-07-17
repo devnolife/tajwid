@@ -8,6 +8,10 @@ const statusConfig: Record<string, { label: string; bg: string; text: string }> 
   lulus: { label: "Lulus", bg: "#D1FAE5", text: "#059669" },
   tidak_lulus: { label: "Perlu Mengulang", bg: "#FEF3C7", text: "#D97706" },
   perlu_mengulang: { label: "Perlu Mengulang", bg: "#FEF3C7", text: "#D97706" },
+  scheduled: { label: "Terjadwal", bg: "#E0E7FF", text: "#4F46E5" },
+  completed: { label: "Selesai", bg: "#D1FAE5", text: "#059669" },
+  no_show: { label: "Tidak Hadir", bg: "#FEE2E2", text: "#DC2626" },
+  cancelled: { label: "Dibatalkan", bg: "#F3F4F6", text: "#6B7280" },
 };
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {

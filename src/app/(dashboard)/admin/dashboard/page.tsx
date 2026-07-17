@@ -63,13 +63,18 @@ export default function AdminDashboard() {
     { name: "Belum Tes", value: notTested, color: C.gold },
   ].filter(d => d.value > 0);
 
-  const barData = [
-    { month: "Jan", count: 2 },
-    { month: "Feb", count: 3 },
-    { month: "Mar", count: lunas },
-    { month: "Apr", count: 0 },
-    { month: "Mei", count: 0 },
-  ];
+  // Pembayaran lunas per bulan (6 bulan terakhir) berdasarkan paidAt nyata.
+  const barData = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - (5 - i));
+    const count = payments?.filter(p => {
+      if (p.status !== "lunas" || !p.paidAt) return false;
+      const paid = new Date(p.paidAt);
+      return paid.getFullYear() === d.getFullYear() && paid.getMonth() === d.getMonth();
+    }).length || 0;
+    return { month: d.toLocaleDateString("id-ID", { month: "short" }), count };
+  });
 
   if (isLoading) {
     return (

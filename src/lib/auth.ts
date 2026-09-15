@@ -62,15 +62,39 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           try {
             const user = await storage.getUserByNim(nim);
             if (user) {
-              if (user.role !== "mahasiswa" || !user.password) {
+              if (user.role !== "mahasiswa") {
                 return null;
               }
-              const valid = await verifyAndUpgradePassword(
-                password,
-                user.password,
-                user.role,
-                (encodedPassword) => storage.updateUser(user.id, { password: encodedPassword }),
-              );
+
+              let valid = user.password
+                ? await verifyAndUpgradePassword(
+                    password,
+                    user.password,
+                    user.role,
+                    (encodedPassword) => storage.updateUser(user.id, { password: encodedPassword }),
+                  )
+                : false;
+
+              // Password lokal bisa basi (mahasiswa mengganti password di sistem
+              // kampus) atau kosong (akun SSO). Verifikasi ulang ke GraphQL kampus
+              // sebagai sumber kebenaran, lalu selaraskan salinan lokalnya.
+              if (!valid) {
+                const upstream = await fetchMahasiswaByNim(nim);
+                if (upstream) {
+                  const upstreamVerification = await verifyPassword(
+                    password,
+                    upstream.passwd,
+                    "mahasiswa",
+                  );
+                  if (upstreamVerification.valid) {
+                    await storage.updateUser(user.id, {
+                      password: await hashPassword(password),
+                    });
+                    valid = true;
+                  }
+                }
+              }
+
               if (!valid) {
                 return null;
               }

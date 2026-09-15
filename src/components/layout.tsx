@@ -133,7 +133,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {!collapsed && (
             <div className="leading-tight">
               <span className="font-display italic text-2xl text-white">TajwidKu</span>
-              <p className="text-[10px] tracking-[0.22em] uppercase text-[hsl(38_55%_70%)]/70 mt-0.5">Sajadah Subuh</p>
+              <p className="text-[10px] tracking-[0.22em] uppercase font-medium text-[hsl(38_70%_78%)] mt-0.5">Sajadah Subuh</p>
             </div>
           )}
         </div>

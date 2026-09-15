@@ -62,7 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           try {
             const user = await storage.getUserByNim(nim);
             if (user) {
-              if (user.role !== "mahasiswa") {
+              if (user.role !== "mahasiswa" || !user.password) {
                 return null;
               }
               const valid = await verifyAndUpgradePassword(
@@ -165,7 +165,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const user = await storage.getUserByUsername(username);
 
-          if (!user || user.role === "mahasiswa") {
+          if (!user || user.role === "mahasiswa" || !user.password) {
             return null;
           }
           const valid = await verifyAndUpgradePassword(

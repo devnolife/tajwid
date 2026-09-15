@@ -11,6 +11,8 @@ interface MahasiswaData {
 
 const CAMPUS_GRAPHQL_URL =
   process.env.CAMPUS_GRAPHQL_URL || "https://sicekcok.if.unismuh.ac.id/graphql";
+const CAMPUS_ACCESS_KEY_ID = process.env.CAMPUS_ACCESS_KEY_ID;
+const CAMPUS_SECRET_ACCESS_KEY = process.env.CAMPUS_SECRET_ACCESS_KEY;
 
 const mahasiswaSchema = z.object({
   nim: z.string().min(1),
@@ -44,7 +46,11 @@ export async function fetchMahasiswaByNim(
   try {
     const response = await fetch(CAMPUS_GRAPHQL_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(CAMPUS_ACCESS_KEY_ID ? { "X-Access-Key-Id": CAMPUS_ACCESS_KEY_ID } : {}),
+        ...(CAMPUS_SECRET_ACCESS_KEY ? { "X-Secret-Access-Key": CAMPUS_SECRET_ACCESS_KEY } : {}),
+      },
       body: JSON.stringify({
         query: MAHASISWA_QUERY,
         variables: { nim },

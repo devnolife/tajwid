@@ -25,7 +25,10 @@ export const scheduleStatusEnum = pgEnum("schedule_status", ["scheduled", "compl
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  // Nullable: mahasiswa yang login via SSO Unismuh tidak punya password lokal.
+  password: text("password"),
+  // Klaim `sub` OIDC dari SSO Unismuh — kunci stabil untuk user SSO.
+  sub: text("sub").unique(),
   role: roleEnum("role").notNull().default("mahasiswa"),
   name: text("name").notNull(),
   nim: text("nim").unique(),

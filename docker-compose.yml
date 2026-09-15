@@ -34,6 +34,8 @@ services:
       NEXTAUTH_URL: ${NEXTAUTH_URL:-https://tajwidku.teknik.unismuh.ac.id}
       AUTH_TRUST_HOST: "true"
       CAMPUS_GRAPHQL_URL: ${CAMPUS_GRAPHQL_URL:-https://sicekcok.if.unismuh.ac.id/graphql}
+      CAMPUS_ACCESS_KEY_ID: ${CAMPUS_ACCESS_KEY_ID}
+      CAMPUS_SECRET_ACCESS_KEY: ${CAMPUS_SECRET_ACCESS_KEY}
       CERTIFICATE_API_KEY: ${CERTIFICATE_API_KEY}
       PAYMENT_PROOF_DIR: /app/data/payment-proofs
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}

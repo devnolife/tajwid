@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -22,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Clock, Loader2, Pencil, CalendarX } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Clock, Loader2, Pencil, CalendarX, Check, ChevronsUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import type { User, Schedule } from "@shared/schema";
@@ -45,6 +46,7 @@ export default function JadwalManagement() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Schedule | null>(null);
   const [statusFilter, setStatusFilter] = useState("semua");
+  const [studentPickerOpen, setStudentPickerOpen] = useState(false);
 
   const { data: schedules, isLoading } = useQuery<Schedule[]>({ queryKey: ["/api/schedules"] });
   const { data: students } = useQuery<Omit<User, "password">[]>({ queryKey: ["/api/users", "?role=mahasiswa"] });
@@ -213,14 +215,54 @@ export default function JadwalManagement() {
           <div className="space-y-4">
             <div>
               <Label className="text-xs font-medium" style={{ color: "#666" }}>Mahasiswa</Label>
-              <Select value={form.studentId} onValueChange={(v) => setForm({ ...form, studentId: v })} disabled={!!editingId}>
-                <SelectTrigger className="mt-1 rounded-xl h-10" style={{ background: "#faf8f3", borderColor: "#e8e4db" }}>
-                  <SelectValue placeholder="Pilih mahasiswa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {students?.map(s => <SelectItem key={s.id} value={s.id}>{s.name} ({s.nim})</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Popover open={studentPickerOpen} onOpenChange={setStudentPickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    data-testid="input-schedule-student"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={studentPickerOpen}
+                    disabled={!!editingId}
+                    className="mt-1 w-full justify-between font-normal rounded-xl h-10"
+                    style={{ background: "#faf8f3", borderColor: "#e8e4db" }}
+                  >
+                    {form.studentId ? (
+                      <span className="truncate">
+                        {(() => {
+                          const s = students?.find(st => st.id === form.studentId);
+                          return s ? `${s.name}${s.nim ? ` (${s.nim})` : ""}` : "Pilih mahasiswa";
+                        })()}
+                      </span>
+                    ) : (
+                      <span style={{ color: "#999" }}>Pilih mahasiswa</span>
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Cari nama atau NIM..." />
+                    <CommandList>
+                      <CommandEmpty>Mahasiswa tidak ditemukan</CommandEmpty>
+                      <CommandGroup>
+                        {students?.map(s => (
+                          <CommandItem
+                            key={s.id}
+                            value={`${s.name} ${s.nim ?? ""} ${s.id}`}
+                            onSelect={() => {
+                              setForm({ ...form, studentId: s.id });
+                              setStudentPickerOpen(false);
+                            }}
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${form.studentId === s.id ? "opacity-100" : "opacity-0"}`} />
+                            <span className="truncate">{s.name}{s.nim ? ` (${s.nim})` : ""}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div>
               <Label className="text-xs font-medium" style={{ color: "#666" }}>Instruktur</Label>

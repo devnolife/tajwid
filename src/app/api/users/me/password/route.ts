@@ -22,6 +22,14 @@ export async function PATCH(request: Request) {
       throw new ApiError(404, "User not found", "NOT_FOUND");
     }
 
+    if (!user.password) {
+      throw new ApiError(
+        400,
+        "Akun ini menggunakan login SSO dan tidak memiliki password",
+        "PASSWORD_NOT_SET",
+      );
+    }
+
     const verification = await verifyPassword(currentPassword, user.password, user.role);
     if (!verification.valid) {
       throw new ApiError(

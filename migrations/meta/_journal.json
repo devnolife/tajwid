@@ -15,6 +15,13 @@
       "when": 1783964617235,
       "tag": "0001_third_talon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784294409575,
+      "tag": "0002_mean_rhodey",
+      "breakpoints": true
     }
   ]
 }

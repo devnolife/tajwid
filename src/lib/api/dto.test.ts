@@ -8,6 +8,7 @@ import {
 const user = {
   id: "student-1",
   username: "2024101001",
+  sub: null,
   password: "scrypt$secret",
   role: "mahasiswa" as const,
   name: "Mahasiswa Test",

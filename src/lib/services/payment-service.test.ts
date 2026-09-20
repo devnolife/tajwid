@@ -148,6 +148,59 @@ describe("payment workflow", () => {
     expect(result.certificate).toEqual({ id: "certificate-1" });
   });
 
+  it("still marks payment lunas when cash confirmation issues but certificate is not eligible yet", async () => {
+    const { ApiError } = await import("@/lib/api/authz");
+    const { tx, dependencies } = createHarness({
+      issueCertificate: vi
+        .fn()
+        .mockRejectedValue(new ApiError(400, "Student has not passed", "NOT_ELIGIBLE")),
+    });
+
+    const result = await transitionPaymentWorkflow(
+      { id: "admin-1", role: "admin" },
+      "payment-1",
+      { action: "confirm_cash" },
+      dependencies,
+    );
+
+    expect(tx.updatePayment).toHaveBeenCalledWith("payment-1", {
+      status: "lunas",
+      paidAt: new Date("2026-07-13T12:00:00.000Z"),
+      method: "cash",
+    });
+    expect(result.payment.status).toBe("lunas");
+    expect(result.certificate).toBeUndefined();
+    expect(tx.createAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "certificate.issue_failed" }),
+    );
+  });
+
+  it("still marks payment lunas on approve when certificate issuance throws unexpectedly", async () => {
+    const submitted = {
+      ...payment,
+      status: "menunggu_verifikasi" as const,
+      proofUrl: "/api/payments/payment-1/proof",
+    };
+    const { tx, dependencies } = createHarness({
+      getPayment: vi.fn().mockResolvedValue(submitted),
+      updatePayment: vi.fn().mockImplementation(async (_id, input) => ({
+        ...submitted,
+        ...input,
+      })),
+      issueCertificate: vi.fn().mockRejectedValue(new Error("db exploded")),
+    });
+
+    const result = await transitionPaymentWorkflow(
+      { id: "admin-1", role: "admin" },
+      "payment-1",
+      { action: "approve" },
+      dependencies,
+    );
+
+    expect(result.payment.status).toBe("lunas");
+    expect(result.certificate).toBeUndefined();
+  });
+
   it("rejects cash confirmation from non-admin actors", async () => {
     const { tx, dependencies } = createHarness();
 

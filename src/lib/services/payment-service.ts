@@ -99,10 +99,28 @@ export async function transitionPaymentWorkflow(
         notifyTemplates.paymentVerified(updated.studentId, verifiedStatus),
       );
       if (verifiedStatus === "lunas") {
-        certificate = await tx.issueCertificate(
-          updated.studentId,
-          identity.id,
-        );
+        // Sertifikat adalah efek sekunder: kegagalannya (mis. mahasiswa belum
+        // lulus penilaian, atau galat lain saat penerbitan) tidak boleh
+        // membatalkan konfirmasi pembayaran yang sudah sah. Sertifikat bisa
+        // diterbitkan belakangan lewat endpoint backfill setelah memenuhi
+        // syarat.
+        try {
+          certificate = await tx.issueCertificate(
+            updated.studentId,
+            identity.id,
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Gagal menerbitkan sertifikat";
+          await tx.createAuditEvent({
+            actorId: identity.id,
+            action: "certificate.issue_failed",
+            entityType: "payment",
+            entityId: updated.id,
+            details: { studentId: updated.studentId, reason: message },
+          });
+          certificate = undefined;
+        }
       }
     }
 
